@@ -23,7 +23,7 @@ const FEATURES = [
 
 const TRUST_POINTS = [
   { icon: ShieldCheck, title: 'No Uploads', description: 'Your images never leave your device. All processing happens locally in the browser.' },
-  { icon: EyeOff, title: 'No Tracking', description: 'Zero analytics, zero cookies, zero third-party scripts. Your data stays yours.' },
+  { icon: EyeOff, title: 'No Tracking', description: 'No cookies, no personal data collected. Your images and edits stay entirely yours.' },
   { icon: DatabaseZap, title: 'No Storage', description: 'Nothing is saved to any server. Close the tab and your data is gone.' },
 ] as const;
 
