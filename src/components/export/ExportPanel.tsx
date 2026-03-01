@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Download, Loader2, Archive, Check, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Download, Loader2, Archive, Check, AlertCircle, Sparkles, Info } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { useImageStore } from '@/stores/useImageStore';
 import { FORMAT_OPTIONS } from '@/lib/constants';
-import { processImage, estimateFileSize } from '@/lib/imageProcessor';
+import { processImageViaWorker, estimateFileSizeViaWorker } from '@/lib/workerBridge';
 import { formatFileSize, stripExtension, getExtensionForFormat } from '@/lib/format';
 import type { OutputFormat } from '@/types';
 
@@ -20,6 +20,7 @@ export function ExportPanel() {
     return images.find((i) => i.id === activeImageId);
   });
   const images = useImageStore((s) => s.images);
+  const selectedImageIds = useImageStore((s) => s.selectedImageIds);
   const mode = useImageStore((s) => s.mode);
   const { editState, setFormat, setQuality } = useImageStore();
   const { format, quality } = editState.exportSettings;
@@ -46,7 +47,7 @@ export function ExportPanel() {
     if (!activeImage) return;
     setIsEstimating(true);
     try {
-      const size = await estimateFileSize(activeImage.originalUrl, format, quality);
+      const size = await estimateFileSizeViaWorker(activeImage.originalUrl, format, quality);
       setEstimatedSize(size);
     } catch {
       setEstimatedSize(null);
@@ -59,6 +60,25 @@ export function ExportPanel() {
     return () => clearTimeout(timer);
   }, [estimate]);
 
+  // Format auto-suggestion based on source type and features
+  const suggestedFormat = useMemo(() => {
+    if (!activeImage) return format;
+    const sourceType = activeImage.file.type;
+    const hasTransparency = sourceType === 'image/png' || sourceType === 'image/webp';
+    const hasWatermark = !!editState.watermark;
+    const isLargeImage = activeImage.width * activeImage.height > 4_000_000;
+
+    if (hasTransparency && !hasWatermark) {
+      return isLargeImage ? 'image/webp' : 'image/png';
+    }
+    if (sourceType === 'image/jpeg' || isLargeImage) {
+      return 'image/webp';
+    }
+    return 'image/webp';
+  }, [activeImage, editState.watermark, format]);
+
+  const suggestedLabel = FORMAT_OPTIONS.find((f) => f.value === suggestedFormat)?.label;
+
   if (!activeImage) return null;
 
   const ext = getExtensionForFormat(format);
@@ -66,7 +86,7 @@ export function ExportPanel() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const { blob } = await processImage(activeImage.originalUrl, {
+      const { blob } = await processImageViaWorker(activeImage.originalUrl, {
         crop: editState.crop,
         resizeWidth: editState.resize?.width,
         resizeHeight: editState.resize?.height,
@@ -95,24 +115,33 @@ export function ExportPanel() {
     setIsBatchExporting(true);
     setBatchProgress(0);
 
-    const statuses: BatchStatus[] = images.map((img) => ({
+    // Use selected images if any, otherwise all images
+    const batchImages = selectedImageIds.length > 0
+      ? images.filter((img) => selectedImageIds.includes(img.id))
+      : images;
+
+    const statuses: BatchStatus[] = batchImages.map((img) => ({
       id: img.id, name: img.name, status: 'pending',
     }));
     setBatchStatuses(statuses);
 
     const zip = new JSZip();
 
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
+    for (let i = 0; i < batchImages.length; i++) {
+      const img = batchImages[i];
       statuses[i] = { ...statuses[i], status: 'processing' };
       setBatchStatuses([...statuses]);
 
       try {
         // Batch applies: format, quality, resize (uniform settings)
         // Does NOT apply: crop, rotate/flip (per-image operations)
-        const { blob } = await processImage(img.originalUrl, {
+        const { blob } = await processImageViaWorker(img.originalUrl, {
           resizeWidth: editState.resize?.width,
           resizeHeight: editState.resize?.height,
+          colorAdjustments: editState.colorAdjustments,
+          watermark: editState.watermark,
+          border: editState.border,
+          rotate: editState.rotate,
           format,
           quality,
         });
@@ -124,7 +153,7 @@ export function ExportPanel() {
         statuses[i] = { ...statuses[i], status: 'error' };
       }
       setBatchStatuses([...statuses]);
-      setBatchProgress(Math.round(((i + 1) / images.length) * 100));
+      setBatchProgress(Math.round(((i + 1) / batchImages.length) * 100));
     }
 
     try {
@@ -164,6 +193,25 @@ export function ExportPanel() {
             </button>
           ))}
         </div>
+
+        {/* Format suggestion */}
+        {suggestedFormat !== format && suggestedLabel && (
+          <button
+            onClick={() => setFormat(suggestedFormat as OutputFormat)}
+            className="flex items-center gap-1.5 mt-2 px-2 py-1 text-[10px] text-violet-300 bg-violet-500/10 rounded-md hover:bg-violet-500/20 transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            Suggested: {suggestedLabel}
+          </button>
+        )}
+
+        {/* PNG info */}
+        {format === 'image/png' && (
+          <div className="flex items-start gap-1.5 mt-2 px-2 py-1.5 text-[10px] text-blue-300 bg-blue-500/10 rounded-md">
+            <Info className="w-3 h-3 shrink-0 mt-0.5" />
+            PNG is lossless — quality slider does not apply.
+          </div>
+        )}
       </div>
 
       {/* Quality */}
@@ -262,11 +310,10 @@ export function ExportPanel() {
           <div className="h-px bg-zinc-800" />
           <div>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
-              Batch Export ({images.length} images)
+              Batch Export ({selectedImageIds.length > 0 ? `${selectedImageIds.length} selected` : `${images.length} images`})
             </p>
             <p className="text-[10px] text-zinc-600">
-              Applies format, quality{editState.resize ? ', resize' : ''} to all images.
-              Per-image crop and rotate are not applied in batch.
+              Applies all current edit settings (format, quality{editState.resize ? ', resize' : ''}{editState.colorAdjustments.brightness !== 0 || editState.colorAdjustments.contrast !== 0 || editState.colorAdjustments.saturation !== 0 ? ', color' : ''}{editState.watermark ? ', watermark' : ''}{editState.border ? ', border' : ''}) to all images.
             </p>
           </div>
 

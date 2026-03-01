@@ -1,11 +1,13 @@
+import { useState, useEffect, useRef } from 'react';
 import { useImageStore } from '@/stores/useImageStore';
 import { formatFileSize } from '@/lib/format';
 import { colorToCssFilter } from '@/lib/imageProcessor';
+import { processImageViaWorker } from '@/lib/workerBridge';
 import { CompareSlider } from '@/components/shared/CompareSlider';
 import { CropperOverlay } from '@/components/editor/CropperOverlay';
 import { BorderPreview } from '@/components/editor/BorderPreview';
 import { WatermarkPreview } from '@/components/editor/WatermarkPreview';
-import { SplitSquareHorizontal, Undo2, Redo2 } from 'lucide-react';
+import { SplitSquareHorizontal, Undo2, Redo2, Loader2 } from 'lucide-react';
 import type { RotateData, CropData } from '@/types';
 
 function buildTransform(rotate: RotateData): string | undefined {
@@ -22,7 +24,6 @@ function CropIndicator({ crop, imageWidth, imageHeight }: {
   imageWidth: number;
   imageHeight: number;
 }) {
-  // Calculate percentages for positioning
   const left = (crop.x / imageWidth) * 100;
   const top = (crop.y / imageHeight) * 100;
   const width = (crop.width / imageWidth) * 100;
@@ -30,18 +31,12 @@ function CropIndicator({ crop, imageWidth, imageHeight }: {
 
   return (
     <>
-      {/* Darkened overlay outside crop */}
       <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: 'inherit' }}>
-        {/* Top */}
         <div className="absolute left-0 right-0 top-0 bg-black/40" style={{ height: `${top}%` }} />
-        {/* Bottom */}
         <div className="absolute left-0 right-0 bottom-0 bg-black/40" style={{ height: `${100 - top - height}%` }} />
-        {/* Left */}
         <div className="absolute left-0 bg-black/40" style={{ top: `${top}%`, height: `${height}%`, width: `${left}%` }} />
-        {/* Right */}
         <div className="absolute right-0 bg-black/40" style={{ top: `${top}%`, height: `${height}%`, width: `${100 - left - width}%` }} />
       </div>
-      {/* Dashed border around crop area */}
       <div
         className="absolute border-2 border-dashed border-violet-400/70 pointer-events-none"
         style={{
@@ -63,6 +58,58 @@ export function EditorCanvas() {
   const { editState, activeTool, showCompare, toggleCompare, undo, redo, canUndo, canRedo } = useImageStore();
   const colorAdj = editState.colorAdjustments;
   const filterStyle = colorToCssFilter(colorAdj);
+
+  // Processed preview for compare mode
+  const [processedUrl, setProcessedUrl] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const prevUrlRef = useRef<string | null>(null);
+
+  // Generate processed preview when compare mode is active
+  useEffect(() => {
+    if (!showCompare || !activeImage) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsProcessing(true);
+      try {
+        const { blob } = await processImageViaWorker(activeImage.originalUrl, {
+          crop: editState.crop,
+          resizeWidth: editState.resize?.width,
+          resizeHeight: editState.resize?.height,
+          rotate: editState.rotate,
+          colorAdjustments: editState.colorAdjustments,
+          watermark: editState.watermark,
+          border: editState.border,
+          format: 'image/png',
+          quality: 1,
+        });
+        if (!cancelled) {
+          // Revoke previous URL
+          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+          const url = URL.createObjectURL(blob);
+          prevUrlRef.current = url;
+          setProcessedUrl(url);
+        }
+      } catch (err) {
+        console.error('Compare preview failed:', err);
+      }
+      if (!cancelled) setIsProcessing(false);
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [showCompare, activeImage, editState]);
+
+  // Cleanup processed URL on unmount
+  useEffect(() => {
+    return () => {
+      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+    };
+  }, []);
 
   if (!activeImage) {
     return (
@@ -124,11 +171,22 @@ export function EditorCanvas() {
           />
 
           {showCompare ? (
-            <CompareSlider
-              originalSrc={activeImage.originalUrl}
-              filterStyle={filterStyle}
-              alt={activeImage.name}
-            />
+            <>
+              {isProcessing && !processedUrl && (
+                <div className="flex items-center justify-center p-12">
+                  <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+                </div>
+              )}
+              {processedUrl && (
+                <CompareSlider
+                  leftSrc={activeImage.originalUrl}
+                  rightSrc={processedUrl}
+                  leftLabel="Original"
+                  rightLabel="Edited"
+                  alt={activeImage.name}
+                />
+              )}
+            </>
           ) : (
             <div
               className="relative inline-block transition-transform duration-200"
@@ -153,6 +211,19 @@ export function EditorCanvas() {
                 <WatermarkPreview
                   watermark={editState.watermark}
                   sourceWidth={activeImage.width + (editState.border?.left ?? 0) + (editState.border?.right ?? 0)}
+                />
+              )}
+              {/* Grid overlay for straighten alignment */}
+              {activeTool === 'rotate' && editState.rotate.angle % 90 !== 0 && (
+                <div
+                  className="absolute inset-0 pointer-events-none opacity-30"
+                  style={{
+                    backgroundImage: `
+                      linear-gradient(to right, rgba(139,92,246,0.5) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(139,92,246,0.5) 1px, transparent 1px)
+                    `,
+                    backgroundSize: '40px 40px',
+                  }}
                 />
               )}
               {/* Crop region indicator */}
@@ -205,6 +276,7 @@ export function EditorCanvas() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
           }`}
         >
+          {isProcessing && showCompare && <Loader2 className="w-3 h-3 animate-spin" />}
           <SplitSquareHorizontal className="w-3.5 h-3.5" />
           Compare
         </button>
