@@ -27,6 +27,7 @@ export interface RotateData {
   angle: number;
   flipH: boolean;
   flipV: boolean;
+  backgroundColor: string;
 }
 
 export interface ColorAdjustments {
@@ -67,6 +68,12 @@ export type WatermarkPosition =
   | 'center-left' | 'center' | 'center-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right';
 
+export interface BorderStroke {
+  enabled: boolean;
+  width: number;
+  color: string;
+}
+
 export interface BorderData {
   top: number;
   right: number;
@@ -75,6 +82,7 @@ export interface BorderData {
   color: string;
   mode: 'solid' | 'blur';
   uniform: boolean;
+  stroke: BorderStroke;
 }
 
 export interface ExportSettings {
