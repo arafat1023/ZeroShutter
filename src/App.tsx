@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useImageStore } from '@/stores/useImageStore';
+import { initTheme } from '@/stores/useThemeStore';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Header } from '@/components/layout/Header';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -7,10 +9,14 @@ import { EditorCanvas } from '@/components/editor/EditorCanvas';
 import { SettingsPanel } from '@/components/editor/SettingsPanel';
 import { BatchPanel } from '@/components/batch/BatchPanel';
 
+// Initialize theme on app load
+initTheme();
+
 export function App() {
   const { images, mode, undo, redo, setActiveTool, activeTool } = useImageStore();
   const { setRotation, setFlipH, setFlipV, editState } = useImageStore();
   const hasImages = images.length > 0;
+  const isMobile = useIsMobile();
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -77,7 +83,16 @@ export function App() {
 
       {!hasImages ? (
         <LandingPage />
+      ) : isMobile ? (
+        /* Mobile layout: stacked vertically with bottom toolbar */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {mode === 'batch' && images.length > 1 && <BatchPanel />}
+          <EditorCanvas />
+          {activeTool && <SettingsPanel />}
+          <Toolbar />
+        </div>
       ) : (
+        /* Desktop layout: horizontal panels */
         <div className="flex-1 flex overflow-hidden">
           {mode === 'batch' && images.length > 1 && <BatchPanel />}
           <Toolbar />

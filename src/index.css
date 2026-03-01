@@ -1,5 +1,59 @@
 @import "tailwindcss";
 
+/* ── Light mode color overrides ────────────────────────────────
+   Dark is the default theme. When .light is on <html>,
+   we remap the zinc palette so backgrounds become light
+   and text becomes dark.
+   Mapping: dark-bg zinc → light-bg, dark-text zinc → dark-text
+   ────────────────────────────────────────────────────────────── */
+
+/* Backgrounds */
+.light .bg-zinc-950  { background-color: #ffffff !important; }
+.light .bg-zinc-900  { background-color: #f9fafb !important; }
+.light .bg-zinc-800  { background-color: #f0f1f3 !important; }
+.light .bg-zinc-700  { background-color: #e4e4e7 !important; }
+.light .bg-zinc-600  { background-color: #d4d4d8 !important; }
+.light .bg-zinc-500  { background-color: #a1a1aa !important; }
+.light .bg-zinc-400  { background-color: #71717a !important; }
+
+/* Background with opacity */
+.light .bg-zinc-950\/50  { background-color: rgba(255,255,255,0.5) !important; }
+.light .bg-zinc-900\/50  { background-color: rgba(249,250,251,0.5) !important; }
+.light .bg-zinc-900\/60  { background-color: rgba(249,250,251,0.6) !important; }
+.light .bg-zinc-800\/50  { background-color: rgba(240,241,243,0.5) !important; }
+.light .bg-zinc-800\/30  { background-color: rgba(240,241,243,0.3) !important; }
+
+/* Text */
+.light .text-zinc-100 { color: #18181b !important; }
+.light .text-zinc-200 { color: #27272a !important; }
+.light .text-zinc-300 { color: #3f3f46 !important; }
+.light .text-zinc-400 { color: #52525b !important; }
+.light .text-zinc-500 { color: #71717a !important; }
+.light .text-zinc-600 { color: #a1a1aa !important; }
+.light .text-zinc-700 { color: #d4d4d8 !important; }
+
+/* Borders */
+.light .border-zinc-800 { border-color: #e4e4e7 !important; }
+.light .border-zinc-700 { border-color: #d4d4d8 !important; }
+.light .border-zinc-500 { border-color: #a1a1aa !important; }
+
+/* Hover states */
+.light .hover\:bg-zinc-800:hover  { background-color: #f0f1f3 !important; }
+.light .hover\:bg-zinc-700:hover  { background-color: #e4e4e7 !important; }
+.light .hover\:text-zinc-200:hover { color: #27272a !important; }
+.light .hover\:text-zinc-300:hover { color: #3f3f46 !important; }
+.light .hover\:text-zinc-400:hover { color: #52525b !important; }
+.light .hover\:border-zinc-700:hover { border-color: #d4d4d8 !important; }
+.light .hover\:border-zinc-500:hover { border-color: #a1a1aa !important; }
+
+/* Scrollbar for light mode */
+.light ::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 6px;
