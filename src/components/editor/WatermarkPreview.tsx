@@ -37,13 +37,31 @@ export function WatermarkPreview({ watermark, sourceWidth }: WatermarkPreviewPro
   }, []);
 
   if (watermark.type === 'text' && !watermark.text.trim()) return null;
+  if (watermark.type === 'image' && !watermark.imageUrl) return null;
   if (dims.width === 0) {
     return <div ref={overlayRef} className="absolute inset-0 pointer-events-none" />;
   }
 
   const scale = sourceWidth > 0 ? dims.width / sourceWidth : 1;
-  const scaledFontSize = Math.max(watermark.fontSize * scale, 4);
 
+  if (watermark.type === 'image' && watermark.imageUrl) {
+    return (
+      <div ref={overlayRef} className="absolute inset-0 pointer-events-none overflow-hidden">
+        {watermark.tiling ? (
+          <TiledImageWatermark
+            watermark={watermark}
+            scale={scale}
+            containerWidth={dims.width}
+            containerHeight={dims.height}
+          />
+        ) : (
+          <SingleImageWatermark watermark={watermark} containerWidth={dims.width} />
+        )}
+      </div>
+    );
+  }
+
+  const scaledFontSize = Math.max(watermark.fontSize * scale, 4);
   const textStyle: React.CSSProperties = {
     fontFamily: watermark.fontFamily,
     fontSize: `${scaledFontSize}px`,
@@ -102,6 +120,89 @@ function SingleWatermark({ watermark, textStyle, scaledFontSize }: {
   );
 }
 
+function SingleImageWatermark({ watermark, containerWidth }: {
+  watermark: WatermarkData;
+  containerWidth: number;
+}) {
+  const pos = POSITION_STYLES[watermark.position];
+  const imgWidth = (watermark.scale / 100) * containerWidth;
+
+  return (
+    <div
+      className="absolute inset-0 flex"
+      style={{
+        alignItems: pos.alignItems,
+        justifyContent: pos.justifyContent,
+        padding: `${imgWidth * 0.2}px`,
+      }}
+    >
+      <img
+        src={watermark.imageUrl!}
+        alt=""
+        style={{
+          width: `${imgWidth}px`,
+          opacity: watermark.imageOpacity,
+          transform: watermark.rotation !== 0 ? `rotate(${watermark.rotation}deg)` : undefined,
+        }}
+        draggable={false}
+      />
+    </div>
+  );
+}
+
+function TiledImageWatermark({ watermark, scale, containerWidth, containerHeight }: {
+  watermark: WatermarkData;
+  scale: number;
+  containerWidth: number;
+  containerHeight: number;
+}) {
+  const elements = useMemo(() => {
+    let spacing = (watermark.tileSpacing || 200) * scale;
+    const rotation = watermark.rotation || 0;
+    const overflow = Math.max(containerWidth, containerHeight) * 0.5;
+    const imgWidth = (watermark.scale / 100) * containerWidth;
+
+    const cols = Math.ceil((containerWidth + 2 * overflow) / spacing);
+    const rows = Math.ceil((containerHeight + 2 * overflow) / spacing);
+    if (cols * rows > MAX_TILES) {
+      const ratio = Math.sqrt((cols * rows) / MAX_TILES);
+      spacing *= ratio;
+    }
+
+    const adjCols = Math.ceil((containerWidth + 2 * overflow) / spacing);
+    const adjRows = Math.ceil((containerHeight + 2 * overflow) / spacing);
+    const tiles: React.ReactNode[] = [];
+
+    for (let r = 0; r < adjRows; r++) {
+      for (let c = 0; c < adjCols; c++) {
+        tiles.push(
+          <img
+            key={`${r}-${c}`}
+            src={watermark.imageUrl!}
+            alt=""
+            className="absolute"
+            style={{
+              width: `${imgWidth}px`,
+              opacity: watermark.imageOpacity,
+              left: -overflow + c * spacing - imgWidth / 2,
+              top: -overflow + r * spacing,
+              transform: `rotate(${rotation}deg)`,
+            }}
+            draggable={false}
+          />
+        );
+      }
+    }
+    return tiles;
+  }, [
+    watermark.imageUrl, watermark.tileSpacing, watermark.rotation,
+    watermark.scale, watermark.imageOpacity,
+    scale, containerWidth, containerHeight,
+  ]);
+
+  return <>{elements}</>;
+}
+
 function TiledWatermarks({ watermark, textStyle, scale, containerWidth, containerHeight }: {
   watermark: WatermarkData;
   textStyle: React.CSSProperties;
@@ -114,7 +215,6 @@ function TiledWatermarks({ watermark, textStyle, scale, containerWidth, containe
     const rotation = watermark.rotation || -30;
     const overflow = Math.max(containerWidth, containerHeight) * 0.5;
 
-    // Prevent too many tiles
     const cols = Math.ceil((containerWidth + 2 * overflow) / spacing);
     const rows = Math.ceil((containerHeight + 2 * overflow) / spacing);
     if (cols * rows > MAX_TILES) {
@@ -147,8 +247,6 @@ function TiledWatermarks({ watermark, textStyle, scale, containerWidth, containe
     return tiles;
   }, [
     watermark.text, watermark.tileSpacing, watermark.rotation,
-    watermark.fontFamily, watermark.fontSize, watermark.fontColor,
-    watermark.fontOpacity, watermark.bold, watermark.italic,
     scale, containerWidth, containerHeight, textStyle,
   ]);
 
