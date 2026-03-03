@@ -56,7 +56,13 @@ export function BorderPreview({ border, imageWidth, imageSrc, children }: Border
           <div className="absolute inset-0 bg-black/20" />
         </>
       )}
-      <div ref={innerRef} className="relative z-10">
+      <div
+        ref={innerRef}
+        className="relative z-10"
+        style={border.stroke?.enabled ? {
+          border: `${Math.max(1, Math.round(border.stroke.width * scale))}px solid ${border.stroke.color}`,
+        } : undefined}
+      >
         {children}
       </div>
     </div>

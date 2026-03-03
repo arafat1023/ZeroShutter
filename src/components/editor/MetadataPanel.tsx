@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, MapPin, Camera, Loader2, Trash2 } from 'lucide-react';
+import { AlertTriangle, MapPin, Camera, Loader2, Trash2, Download, Shield, Archive } from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { useImageStore } from '@/stores/useImageStore';
+import { processImageViaWorker } from '@/lib/workerBridge';
+import { stripExtension, getExtensionForFormat } from '@/lib/format';
 import type { ExifData } from '@/types';
 
 // Dynamic import to keep exifr lazy-loaded
@@ -25,10 +29,13 @@ export function MetadataPanel() {
     const { images, activeImageId } = s;
     return images.find((i) => i.id === activeImageId);
   });
+  const { editState } = useImageStore();
 
   const [exif, setExif] = useState<ExifData | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasGps, setHasGps] = useState(false);
+  const [stripping, setStripping] = useState(false);
+  const [stripMode, setStripMode] = useState<'all' | 'gps-only' | 'preserve-color'>('all');
 
   useEffect(() => {
     if (!activeImage) return;
@@ -154,6 +161,84 @@ export function MetadataPanel() {
         <p className="text-xs text-zinc-500 text-center">No standard EXIF fields found.</p>
       )}
 
+      {/* Strip Options */}
+      <div>
+        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <Shield className="w-3 h-3" />
+          Metadata Stripping
+        </h3>
+        <div className="space-y-1.5">
+          {([
+            { value: 'all' as const, label: 'Strip everything', desc: 'Removes all EXIF, GPS, and embedded data' },
+            { value: 'gps-only' as const, label: 'Strip GPS only', desc: 'Removes location data, keeps camera info' },
+            { value: 'preserve-color' as const, label: 'Preserve color profile', desc: 'Strips all except ICC color profile' },
+          ]).map((opt) => (
+            <label
+              key={opt.value}
+              className={`flex items-start gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+                stripMode === opt.value ? 'bg-violet-500/10 border border-violet-500/20' : 'hover:bg-zinc-800/50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="stripMode"
+                value={opt.value}
+                checked={stripMode === opt.value}
+                onChange={() => setStripMode(opt.value)}
+                className="mt-0.5 accent-violet-500"
+              />
+              <div>
+                <span className="text-xs text-zinc-300">{opt.label}</span>
+                <p className="text-[10px] text-zinc-500">{opt.desc}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+        <p className="text-[9px] text-zinc-600 mt-2">
+          Canvas re-encoding strips all metadata by default. Selective preservation requires future implementation.
+        </p>
+      </div>
+
+      {/* Strip & Download button */}
+      <button
+        onClick={async () => {
+          if (!activeImage) return;
+          setStripping(true);
+          try {
+            const { format, quality } = editState.exportSettings;
+            const { blob } = await processImageViaWorker(activeImage.originalUrl, { format, quality });
+            const ext = getExtensionForFormat(format);
+            const fileName = `${stripExtension(activeImage.name)}_clean.${ext}`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error('Metadata strip export failed:', err);
+          }
+          setStripping(false);
+        }}
+        disabled={stripping}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium rounded-lg transition-colors"
+      >
+        {stripping ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Stripping...
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" />
+            Download Clean Copy
+          </>
+        )}
+      </button>
+
+      {/* Batch strip */}
+      <BatchStripButton />
+
       {/* Info */}
       <div className="p-3 bg-zinc-800/50 rounded-lg">
         <div className="flex items-start gap-2">
@@ -163,6 +248,79 @@ export function MetadataPanel() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BatchStripButton() {
+  const images = useImageStore((s) => s.images);
+  const selectedImageIds = useImageStore((s) => s.selectedImageIds);
+  const mode = useImageStore((s) => s.mode);
+  const { editState } = useImageStore();
+  const [strippingBatch, setStrippingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+
+  if (mode !== 'batch' || images.length <= 1) return null;
+
+  const batchImages = selectedImageIds.length > 0
+    ? images.filter((img) => selectedImageIds.includes(img.id))
+    : images;
+
+  const handleBatchStrip = async () => {
+    setStrippingBatch(true);
+    setBatchProgress(0);
+    const { format, quality } = editState.exportSettings;
+    const ext = getExtensionForFormat(format);
+    const zip = new JSZip();
+
+    for (let i = 0; i < batchImages.length; i++) {
+      const img = batchImages[i];
+      try {
+        const { blob } = await processImageViaWorker(img.originalUrl, { format, quality });
+        zip.file(`${stripExtension(img.name)}_clean.${ext}`, blob);
+      } catch (err) {
+        console.error(`Failed to strip ${img.name}:`, err);
+      }
+      setBatchProgress(Math.round(((i + 1) / batchImages.length) * 100));
+    }
+
+    try {
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, 'zeroshutter-stripped.zip');
+    } catch (err) {
+      console.error('ZIP generation failed:', err);
+    }
+    setStrippingBatch(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="h-px bg-zinc-800" />
+      <button
+        onClick={handleBatchStrip}
+        disabled={strippingBatch}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium rounded-lg transition-colors"
+      >
+        {strippingBatch ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Stripping {batchProgress}%
+          </>
+        ) : (
+          <>
+            <Archive className="w-4 h-4" />
+            Strip All ({selectedImageIds.length > 0 ? `${selectedImageIds.length} selected` : `${images.length} images`})
+          </>
+        )}
+      </button>
+      {strippingBatch && (
+        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+            style={{ width: `${batchProgress}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

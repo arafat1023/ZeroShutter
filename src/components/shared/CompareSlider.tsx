@@ -1,12 +1,20 @@
 import { useState, useRef, useCallback } from 'react';
 
 interface CompareSliderProps {
-  originalSrc: string;
-  filterStyle: string;
-  alt: string;
+  leftSrc: string;
+  rightSrc: string;
+  leftLabel?: string;
+  rightLabel?: string;
+  alt?: string;
 }
 
-export function CompareSlider({ originalSrc, filterStyle, alt }: CompareSliderProps) {
+export function CompareSlider({
+  leftSrc,
+  rightSrc,
+  leftLabel = 'Original',
+  rightLabel = 'Edited',
+  alt = 'Comparison',
+}: CompareSliderProps) {
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -54,25 +62,23 @@ export function CompareSlider({ originalSrc, filterStyle, alt }: CompareSliderPr
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
     >
-      {/* Edited (full width, behind clip) */}
+      {/* Right image (full width, behind clip) */}
       <img
-        src={originalSrc}
-        alt={`${alt} - edited`}
+        src={rightSrc}
+        alt={`${alt} - ${rightLabel}`}
         className="block max-w-full max-h-[calc(100vh-220px)] object-contain"
-        style={{ filter: filterStyle }}
         draggable={false}
       />
 
-      {/* Original (clipped to left side of divider) */}
+      {/* Left image (clipped to left side of divider) */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ width: `${position}%` }}
       >
         <img
-          src={originalSrc}
-          alt={`${alt} - original`}
+          src={leftSrc}
+          alt={`${alt} - ${leftLabel}`}
           className="block max-w-none max-h-[calc(100vh-220px)] object-contain"
-          style={{ filter: 'none' }}
           draggable={false}
         />
       </div>
@@ -82,7 +88,6 @@ export function CompareSlider({ originalSrc, filterStyle, alt }: CompareSliderPr
         className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg"
         style={{ left: `${position}%` }}
       >
-        {/* Handle */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
           <div className="flex gap-0.5">
             <div className="w-0.5 h-3 bg-zinc-400 rounded-full" />
@@ -93,10 +98,10 @@ export function CompareSlider({ originalSrc, filterStyle, alt }: CompareSliderPr
 
       {/* Labels */}
       <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
-        Original
+        {leftLabel}
       </div>
       <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
-        Edited
+        {rightLabel}
       </div>
     </div>
   );

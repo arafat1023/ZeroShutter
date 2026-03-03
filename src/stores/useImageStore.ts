@@ -17,7 +17,7 @@ function createDefaultEditState(): EditState {
   return {
     crop: null,
     resize: null,
-    rotate: { angle: 0, flipH: false, flipV: false },
+    rotate: { angle: 0, flipH: false, flipV: false, backgroundColor: '#ffffff' },
     colorAdjustments: defaultColor(),
     watermark: null,
     border: null,
@@ -45,6 +45,7 @@ function loadImageDimensions(file: File): Promise<{ url: string; width: number; 
 interface ImageStore {
   images: ImageFile[];
   activeImageId: string | null;
+  selectedImageIds: string[];
   mode: 'single' | 'batch';
   editState: EditState;
   activeTool: ActiveTool;
@@ -63,6 +64,11 @@ interface ImageStore {
   setActiveImage: (id: string | null) => void;
   setMode: (mode: 'single' | 'batch') => void;
   setActiveTool: (tool: ActiveTool) => void;
+
+  // Batch selection
+  selectAll: () => void;
+  deselectAll: () => void;
+  toggleImageSelection: (id: string) => void;
 
   // Phase 1 edit actions
   setCrop: (crop: CropData | null) => void;
@@ -93,6 +99,7 @@ interface ImageStore {
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  jumpToHistory: (index: number) => void;
 
   // Phase 2: Compare
   toggleCompare: () => void;
@@ -106,6 +113,7 @@ interface ImageStore {
 export const useImageStore = create<ImageStore>((set, get) => ({
   images: [],
   activeImageId: null,
+  selectedImageIds: [],
   mode: 'single',
   editState: createDefaultEditState(),
   activeTool: null,
@@ -144,6 +152,7 @@ export const useImageStore = create<ImageStore>((set, get) => ({
       return {
         images: remaining,
         activeImageId: state.activeImageId === id ? (remaining[0]?.id ?? null) : state.activeImageId,
+        selectedImageIds: state.selectedImageIds.filter((i) => i !== id),
         mode: remaining.length <= 1 ? 'single' : state.mode,
       };
     });
@@ -152,7 +161,7 @@ export const useImageStore = create<ImageStore>((set, get) => ({
   clearImages: () => {
     get().images.forEach((img) => URL.revokeObjectURL(img.originalUrl));
     set({
-      images: [], activeImageId: null, editState: createDefaultEditState(),
+      images: [], activeImageId: null, selectedImageIds: [], editState: createDefaultEditState(),
       activeTool: null, mode: 'single', history: [], historyIndex: -1, showCompare: false,
     });
   },
@@ -163,6 +172,15 @@ export const useImageStore = create<ImageStore>((set, get) => ({
   }),
   setMode: (mode) => set({ mode }),
   setActiveTool: (tool) => set({ activeTool: tool }),
+
+  // ── Batch Selection ────────────────────────────
+  selectAll: () => set((s) => ({ selectedImageIds: s.images.map((i) => i.id) })),
+  deselectAll: () => set({ selectedImageIds: [] }),
+  toggleImageSelection: (id) => set((s) => ({
+    selectedImageIds: s.selectedImageIds.includes(id)
+      ? s.selectedImageIds.filter((i) => i !== id)
+      : [...s.selectedImageIds, id],
+  })),
 
   // ── Phase 1 Edit Actions ─────────────────────
 
@@ -301,6 +319,14 @@ export const useImageStore = create<ImageStore>((set, get) => ({
 
   canUndo: () => get().historyIndex > 0,
   canRedo: () => get().historyIndex < get().history.length - 1,
+
+  jumpToHistory: (index: number) => {
+    const { history } = get();
+    const entry = history[index];
+    if (entry) {
+      set({ editState: structuredClone(entry.editState), historyIndex: index });
+    }
+  },
 
   // ── Phase 2: Compare ─────────────────────────
 

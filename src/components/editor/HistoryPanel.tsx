@@ -2,7 +2,7 @@ import { Undo2, Redo2, Clock } from 'lucide-react';
 import { useImageStore } from '@/stores/useImageStore';
 
 export function HistoryPanel() {
-  const { history, historyIndex, undo, redo, canUndo, canRedo } = useImageStore();
+  const { history, historyIndex, undo, redo, canUndo, canRedo, jumpToHistory } = useImageStore();
 
   return (
     <div className="space-y-3">
@@ -49,11 +49,12 @@ export function HistoryPanel() {
           {history.map((entry, idx) => (
             <div
               key={entry.id}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
+              onClick={() => jumpToHistory(idx)}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
                 idx === historyIndex
                   ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
                   : idx > historyIndex
-                  ? 'text-zinc-600'
+                  ? 'text-zinc-600 hover:bg-zinc-800/30'
                   : 'text-zinc-400 hover:bg-zinc-800/50'
               }`}
             >

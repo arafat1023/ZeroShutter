@@ -27,6 +27,7 @@ export interface RotateData {
   angle: number;
   flipH: boolean;
   flipV: boolean;
+  backgroundColor: string;
 }
 
 export interface ColorAdjustments {
@@ -60,12 +61,21 @@ export interface WatermarkData {
   tileSpacing: number;
   // Size (% of image width for image watermark)
   scale: number;
+  // Custom drag offsets (percentage 0-100, null = use grid position)
+  offsetX: number | null;
+  offsetY: number | null;
 }
 
 export type WatermarkPosition =
   | 'top-left' | 'top-center' | 'top-right'
   | 'center-left' | 'center' | 'center-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right';
+
+export interface BorderStroke {
+  enabled: boolean;
+  width: number;
+  color: string;
+}
 
 export interface BorderData {
   top: number;
@@ -75,6 +85,7 @@ export interface BorderData {
   color: string;
   mode: 'solid' | 'blur';
   uniform: boolean;
+  stroke: BorderStroke;
 }
 
 export interface ExportSettings {

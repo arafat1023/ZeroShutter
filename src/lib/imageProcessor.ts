@@ -87,6 +87,13 @@ export function rotateAndFlipImage(
   canvas.width = nw;
   canvas.height = nh;
   const ctx = canvas.getContext('2d')!;
+
+  // Fill background color for rotated gaps
+  if (rotate.backgroundColor && rotate.backgroundColor !== 'transparent') {
+    ctx.fillStyle = rotate.backgroundColor;
+    ctx.fillRect(0, 0, nw, nh);
+  }
+
   ctx.translate(nw / 2, nh / 2);
   ctx.rotate(rad);
   if (rotate.flipH) ctx.scale(-1, 1);
@@ -359,6 +366,20 @@ export function applyBorder(
 
   // Draw original on top
   ctx.drawImage(source, border.left, border.top, sw, sh);
+
+  // Draw stroke if enabled
+  if (border.stroke?.enabled && border.stroke.width > 0) {
+    ctx.strokeStyle = border.stroke.color;
+    ctx.lineWidth = border.stroke.width;
+    const offset = border.stroke.width / 2;
+    ctx.strokeRect(
+      border.left - offset,
+      border.top - offset,
+      sw + border.stroke.width,
+      sh + border.stroke.width
+    );
+  }
+
   return canvas;
 }
 
