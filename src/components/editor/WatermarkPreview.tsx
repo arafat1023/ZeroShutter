@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { useImageStore } from '@/stores/useImageStore';
 import type { WatermarkData, WatermarkPosition } from '@/types';
 
 interface WatermarkPreviewProps {
@@ -43,6 +44,7 @@ export function WatermarkPreview({ watermark, sourceWidth }: WatermarkPreviewPro
   }
 
   const scale = sourceWidth > 0 ? dims.width / sourceWidth : 1;
+  const isDraggable = !watermark.tiling;
 
   if (watermark.type === 'image' && watermark.imageUrl) {
     return (
@@ -55,7 +57,9 @@ export function WatermarkPreview({ watermark, sourceWidth }: WatermarkPreviewPro
             containerHeight={dims.height}
           />
         ) : (
-          <SingleImageWatermark watermark={watermark} containerWidth={dims.width} />
+          <DraggableWrap isDraggable={isDraggable} containerRef={overlayRef}>
+            <SingleImageWatermark watermark={watermark} containerWidth={dims.width} />
+          </DraggableWrap>
         )}
       </div>
     );
@@ -83,12 +87,105 @@ export function WatermarkPreview({ watermark, sourceWidth }: WatermarkPreviewPro
           containerHeight={dims.height}
         />
       ) : (
-        <SingleWatermark
-          watermark={watermark}
-          textStyle={textStyle}
-          scaledFontSize={scaledFontSize}
-        />
+        <DraggableWrap isDraggable={isDraggable} containerRef={overlayRef}>
+          <SingleWatermark
+            watermark={watermark}
+            textStyle={textStyle}
+            scaledFontSize={scaledFontSize}
+          />
+        </DraggableWrap>
       )}
+    </div>
+  );
+}
+
+/** Wrapper that enables drag-to-position on the watermark */
+function DraggableWrap({ children, isDraggable, containerRef }: {
+  children: React.ReactNode;
+  isDraggable: boolean;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const updateWatermark = useImageStore((s) => s.updateWatermark);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const handleDragStart = useCallback((clientX: number, clientY: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const wm = useImageStore.getState().editState.watermark;
+    if (!wm) return;
+
+    // Current position as percentage
+    const currentX = wm.offsetX ?? 50;
+    const currentY = wm.offsetY ?? 50;
+
+    dragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      origX: (currentX / 100) * rect.width,
+      origY: (currentY / 100) * rect.height,
+    };
+  }, [containerRef]);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (!dragRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+
+    const dx = clientX - dragRef.current.startX;
+    const dy = clientY - dragRef.current.startY;
+    const newX = Math.max(0, Math.min(rect.width, dragRef.current.origX + dx));
+    const newY = Math.max(0, Math.min(rect.height, dragRef.current.origY + dy));
+
+    const pctX = (newX / rect.width) * 100;
+    const pctY = (newY / rect.height) * 100;
+    updateWatermark({ offsetX: pctX, offsetY: pctY });
+  }, [containerRef, updateWatermark]);
+
+  const handleDragEnd = useCallback(() => {
+    dragRef.current = null;
+  }, []);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    handleDragStart(e.clientX, e.clientY);
+    const onMove = (ev: MouseEvent) => handleDragMove(ev.clientX, ev.clientY);
+    const onUp = () => {
+      handleDragEnd();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [handleDragStart, handleDragMove, handleDragEnd]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    handleDragStart(touch.clientX, touch.clientY);
+    const onMove = (ev: TouchEvent) => {
+      const t = ev.touches[0];
+      if (t) handleDragMove(t.clientX, t.clientY);
+    };
+    const onEnd = () => {
+      handleDragEnd();
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+    document.addEventListener('touchmove', onMove);
+    document.addEventListener('touchend', onEnd);
+  }, [handleDragStart, handleDragMove, handleDragEnd]);
+
+  if (!isDraggable) return <>{children}</>;
+
+  return (
+    <div
+      className="absolute inset-0 pointer-events-auto cursor-grab active:cursor-grabbing"
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
+    >
+      {children}
     </div>
   );
 }
@@ -98,6 +195,24 @@ function SingleWatermark({ watermark, textStyle, scaledFontSize }: {
   textStyle: React.CSSProperties;
   scaledFontSize: number;
 }) {
+  const hasCustomOffset = watermark.offsetX !== null && watermark.offsetY !== null;
+
+  if (hasCustomOffset) {
+    return (
+      <div className="absolute inset-0">
+        <span style={{
+          ...textStyle,
+          position: 'absolute',
+          left: `${watermark.offsetX}%`,
+          top: `${watermark.offsetY}%`,
+          transform: `translate(-50%, -50%)${watermark.rotation !== 0 ? ` rotate(${watermark.rotation}deg)` : ''}`,
+        }}>
+          {watermark.text}
+        </span>
+      </div>
+    );
+  }
+
   const pos = POSITION_STYLES[watermark.position];
   const margin = scaledFontSize * 0.8;
 
@@ -124,8 +239,30 @@ function SingleImageWatermark({ watermark, containerWidth }: {
   watermark: WatermarkData;
   containerWidth: number;
 }) {
-  const pos = POSITION_STYLES[watermark.position];
+  const hasCustomOffset = watermark.offsetX !== null && watermark.offsetY !== null;
   const imgWidth = (watermark.scale / 100) * containerWidth;
+
+  if (hasCustomOffset) {
+    return (
+      <div className="absolute inset-0">
+        <img
+          src={watermark.imageUrl!}
+          alt=""
+          style={{
+            position: 'absolute',
+            width: `${imgWidth}px`,
+            opacity: watermark.imageOpacity,
+            left: `${watermark.offsetX}%`,
+            top: `${watermark.offsetY}%`,
+            transform: `translate(-50%, -50%)${watermark.rotation !== 0 ? ` rotate(${watermark.rotation}deg)` : ''}`,
+          }}
+          draggable={false}
+        />
+      </div>
+    );
+  }
+
+  const pos = POSITION_STYLES[watermark.position];
 
   return (
     <div

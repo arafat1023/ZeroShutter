@@ -61,6 +61,9 @@ export interface WatermarkData {
   tileSpacing: number;
   // Size (% of image width for image watermark)
   scale: number;
+  // Custom drag offsets (percentage 0-100, null = use grid position)
+  offsetX: number | null;
+  offsetY: number | null;
 }
 
 export type WatermarkPosition =

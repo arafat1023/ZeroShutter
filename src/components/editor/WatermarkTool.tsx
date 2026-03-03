@@ -39,6 +39,8 @@ export function WatermarkTool() {
       tiling: false,
       tileSpacing: 200,
       scale: 20,
+      offsetX: null,
+      offsetY: null,
     });
     pushHistory(`Add ${type} watermark`);
   };
@@ -258,7 +260,20 @@ export function WatermarkTool() {
 
       {/* Position Grid */}
       <div>
-        <label className="text-xs text-zinc-400 block mb-1">Position</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs text-zinc-400">Position</label>
+          {wm.offsetX !== null && (
+            <button
+              onClick={() => updateWatermark({ offsetX: null, offsetY: null })}
+              className="text-[10px] text-violet-400 hover:text-violet-300"
+            >
+              Reset to grid
+            </button>
+          )}
+        </div>
+        {wm.offsetX !== null && (
+          <p className="text-[10px] text-zinc-500 mb-1">Custom position (drag on canvas)</p>
+        )}
         <div className="grid grid-cols-3 gap-1">
           {POSITIONS.map((p) => (
             <button

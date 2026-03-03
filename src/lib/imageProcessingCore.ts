@@ -116,7 +116,9 @@ function drawSingleText(
   canvasH: number
 ): void {
   ctx.save();
-  const pos = getPositionCoords(wm.position, canvasW, canvasH, wm.fontSize);
+  const pos = wm.offsetX !== null && wm.offsetY !== null
+    ? { x: (wm.offsetX / 100) * canvasW, y: (wm.offsetY / 100) * canvasH }
+    : getPositionCoords(wm.position, canvasW, canvasH, wm.fontSize);
   const style = `${wm.italic ? 'italic ' : ''}${wm.bold ? 'bold ' : ''}${wm.fontSize}px ${wm.fontFamily}`;
   ctx.font = style;
   ctx.fillStyle = wm.fontColor;
@@ -195,7 +197,9 @@ function drawImageWatermarkOnCtx(
       }
     }
   } else {
-    const pos = getPositionCoords(wm.position, canvasW, canvasH, Math.max(targetW, targetH) / 2);
+    const pos = wm.offsetX !== null && wm.offsetY !== null
+      ? { x: (wm.offsetX / 100) * canvasW, y: (wm.offsetY / 100) * canvasH }
+      : getPositionCoords(wm.position, canvasW, canvasH, Math.max(targetW, targetH) / 2);
     if (wm.rotation !== 0) {
       ctx.translate(pos.x, pos.y);
       ctx.rotate((wm.rotation * Math.PI) / 180);
