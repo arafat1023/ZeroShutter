@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, MapPin, Camera, Loader2, Trash2, Download, Shield } from 'lucide-react';
+import { AlertTriangle, MapPin, Camera, Loader2, Trash2, Download, Shield, Archive } from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { useImageStore } from '@/stores/useImageStore';
 import { processImageViaWorker } from '@/lib/workerBridge';
 import { stripExtension, getExtensionForFormat } from '@/lib/format';
@@ -234,6 +236,9 @@ export function MetadataPanel() {
         )}
       </button>
 
+      {/* Batch strip */}
+      <BatchStripButton />
+
       {/* Info */}
       <div className="p-3 bg-zinc-800/50 rounded-lg">
         <div className="flex items-start gap-2">
@@ -243,6 +248,79 @@ export function MetadataPanel() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BatchStripButton() {
+  const images = useImageStore((s) => s.images);
+  const selectedImageIds = useImageStore((s) => s.selectedImageIds);
+  const mode = useImageStore((s) => s.mode);
+  const { editState } = useImageStore();
+  const [strippingBatch, setStrippingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+
+  if (mode !== 'batch' || images.length <= 1) return null;
+
+  const batchImages = selectedImageIds.length > 0
+    ? images.filter((img) => selectedImageIds.includes(img.id))
+    : images;
+
+  const handleBatchStrip = async () => {
+    setStrippingBatch(true);
+    setBatchProgress(0);
+    const { format, quality } = editState.exportSettings;
+    const ext = getExtensionForFormat(format);
+    const zip = new JSZip();
+
+    for (let i = 0; i < batchImages.length; i++) {
+      const img = batchImages[i];
+      try {
+        const { blob } = await processImageViaWorker(img.originalUrl, { format, quality });
+        zip.file(`${stripExtension(img.name)}_clean.${ext}`, blob);
+      } catch (err) {
+        console.error(`Failed to strip ${img.name}:`, err);
+      }
+      setBatchProgress(Math.round(((i + 1) / batchImages.length) * 100));
+    }
+
+    try {
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, 'zeroshutter-stripped.zip');
+    } catch (err) {
+      console.error('ZIP generation failed:', err);
+    }
+    setStrippingBatch(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="h-px bg-zinc-800" />
+      <button
+        onClick={handleBatchStrip}
+        disabled={strippingBatch}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium rounded-lg transition-colors"
+      >
+        {strippingBatch ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Stripping {batchProgress}%
+          </>
+        ) : (
+          <>
+            <Archive className="w-4 h-4" />
+            Strip All ({selectedImageIds.length > 0 ? `${selectedImageIds.length} selected` : `${images.length} images`})
+          </>
+        )}
+      </button>
+      {strippingBatch && (
+        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+            style={{ width: `${batchProgress}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
