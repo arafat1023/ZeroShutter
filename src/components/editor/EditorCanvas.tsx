@@ -7,7 +7,7 @@ import { CompareSlider } from '@/components/shared/CompareSlider';
 import { CropperOverlay } from '@/components/editor/CropperOverlay';
 import { BorderPreview } from '@/components/editor/BorderPreview';
 import { WatermarkPreview } from '@/components/editor/WatermarkPreview';
-import { SplitSquareHorizontal, Undo2, Redo2, Loader2 } from 'lucide-react';
+import { SplitSquareHorizontal, Columns2, Undo2, Redo2, Loader2 } from 'lucide-react';
 import type { RotateData, CropData } from '@/types';
 
 function buildTransform(rotate: RotateData): string | undefined {
@@ -62,6 +62,7 @@ export function EditorCanvas() {
   // Processed preview for compare mode
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [compareMode, setCompareMode] = useState<'slider' | 'side-by-side'>('slider');
   const prevUrlRef = useRef<string | null>(null);
 
   // Generate processed preview when compare mode is active
@@ -177,7 +178,7 @@ export function EditorCanvas() {
                   <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
                 </div>
               )}
-              {processedUrl && (
+              {processedUrl && compareMode === 'slider' && (
                 <CompareSlider
                   leftSrc={activeImage.originalUrl}
                   rightSrc={processedUrl}
@@ -185,6 +186,30 @@ export function EditorCanvas() {
                   rightLabel="Edited"
                   alt={activeImage.name}
                 />
+              )}
+              {processedUrl && compareMode === 'side-by-side' && (
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <img
+                      src={activeImage.originalUrl}
+                      alt="Original"
+                      className="max-h-[calc(100vh-260px)] object-contain rounded-lg"
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
+                      Original
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <img
+                      src={processedUrl}
+                      alt="Edited"
+                      className="max-h-[calc(100vh-260px)] object-contain rounded-lg"
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
+                      Edited
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           ) : (
@@ -267,19 +292,30 @@ export function EditorCanvas() {
         </div>
 
         {/* Compare toggle */}
-        <button
-          onClick={toggleCompare}
-          title="Before / After comparison"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            showCompare
-              ? 'bg-violet-600 text-white'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-          }`}
-        >
-          {isProcessing && showCompare && <Loader2 className="w-3 h-3 animate-spin" />}
-          <SplitSquareHorizontal className="w-3.5 h-3.5" />
-          Compare
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleCompare}
+            title="Before / After comparison"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              showCompare
+                ? 'bg-violet-600 text-white'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+          >
+            {isProcessing && showCompare && <Loader2 className="w-3 h-3 animate-spin" />}
+            <SplitSquareHorizontal className="w-3.5 h-3.5" />
+            Compare
+          </button>
+          {showCompare && (
+            <button
+              onClick={() => setCompareMode(compareMode === 'slider' ? 'side-by-side' : 'slider')}
+              title={compareMode === 'slider' ? 'Switch to side-by-side' : 'Switch to slider'}
+              className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
         {/* Format indicator */}
         <div className="text-[10px] text-zinc-500">
