@@ -318,6 +318,7 @@ export function ExportPanel() {
           </div>
 
           <button
+            data-batch-export
             onClick={handleBatchExport}
             disabled={isBatchExporting}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg transition-colors"
