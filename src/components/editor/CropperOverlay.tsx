@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { Cropper, type CropperRef } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
+import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { useImageStore } from '@/stores/useImageStore';
 import { ASPECT_RATIO_PRESETS, SOCIAL_PRESETS } from '@/lib/constants';
 import type { AspectRatioPreset } from '@/types';
@@ -184,6 +185,34 @@ export function CropperOverlay() {
           className="h-full"
           backgroundClassName="bg-zinc-950"
         />
+        {/* Zoom controls */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-zinc-900/90 backdrop-blur-sm rounded-lg border border-zinc-700 p-1">
+          <button
+            onClick={() => cropperRef.current?.zoomImage(0.8)}
+            className="p-1.5 text-zinc-400 hover:text-white transition-colors rounded hover:bg-zinc-700"
+            title="Zoom out"
+          >
+            <ZoomOut size={16} />
+          </button>
+          <button
+            onClick={() => {
+              const cropper = cropperRef.current;
+              if (!cropper) return;
+              cropper.reset();
+            }}
+            className="px-2 py-1 text-[11px] text-zinc-400 hover:text-white transition-colors rounded hover:bg-zinc-700"
+            title="Reset zoom"
+          >
+            <Maximize size={14} />
+          </button>
+          <button
+            onClick={() => cropperRef.current?.zoomImage(1.25)}
+            className="p-1.5 text-zinc-400 hover:text-white transition-colors rounded hover:bg-zinc-700"
+            title="Zoom in"
+          >
+            <ZoomIn size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Action bar */}
