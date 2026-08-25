@@ -16,6 +16,16 @@ interface CropOverlayProps {
 const EDGE_HANDLES: CropHandle[] = ['n', 's', 'e', 'w'];
 const CORNER_HANDLES: CropHandle[] = ['nw', 'ne', 'sw', 'se'];
 
+const NUDGE_STEP = 1;
+const NUDGE_STEP_FAST = 10;
+
+const ARROW_DELTAS: Record<string, { dx: number; dy: number }> = {
+  ArrowLeft: { dx: -1, dy: 0 },
+  ArrowRight: { dx: 1, dy: 0 },
+  ArrowUp: { dx: 0, dy: -1 },
+  ArrowDown: { dx: 0, dy: 1 },
+};
+
 /**
  * Drag handles rendered directly on the editor canvas, so cropping stays in
  * the same view as every other tool instead of swapping in a separate widget.
@@ -64,6 +74,33 @@ export function CropOverlay({
     [onCommit]
   );
 
+  /**
+   * Keyboard equivalent of dragging: arrows move the region, Alt+arrows resize
+   * it from the bottom-right, Shift makes either step ten pixels.
+   */
+  const onKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      const delta = ARROW_DELTAS[event.key];
+      if (!delta) return;
+      event.preventDefault();
+
+      const step = event.shiftKey ? NUDGE_STEP_FAST : NUDGE_STEP;
+      onChange(
+        resizeCrop({
+          start: crop,
+          handle: event.altKey ? 'se' : 'move',
+          dx: delta.dx * step,
+          dy: delta.dy * step,
+          imageW: imageWidth,
+          imageH: imageHeight,
+          ratio,
+        })
+      );
+      onCommit();
+    },
+    [crop, onChange, onCommit, imageWidth, imageHeight, ratio]
+  );
+
   const box = {
     left: crop.x * scale,
     top: crop.y * scale,
@@ -90,11 +127,15 @@ export function CropOverlay({
         clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${box.left}px ${box.top}px, ${box.left}px ${box.top + box.height}px, ${box.left + box.width}px ${box.top + box.height}px, ${box.left + box.width}px ${box.top}px, ${box.left}px ${box.top}px)`,
       }} />
 
-      {/* The crop window itself */}
+      {/* The crop window itself — focusable so it can be driven from the keyboard */}
       <div
-        className="absolute cursor-move border border-white/90"
+        className="absolute cursor-move border border-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400"
         style={box}
+        tabIndex={0}
+        role="group"
+        aria-label={`Crop region, ${Math.round(crop.width)} by ${Math.round(crop.height)} pixels at ${Math.round(crop.x)}, ${Math.round(crop.y)}. Arrow keys move, Alt plus arrows resize, Shift for larger steps.`}
         onPointerDown={beginDrag('move')}
+        onKeyDown={onKeyDown}
       >
         {/* Rule-of-thirds guides */}
         <div className="pointer-events-none absolute inset-0">

@@ -111,3 +111,11 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
 ];
+
+/** Common upload limits, offered as one-tap targets. */
+export const TARGET_SIZE_PRESETS = [
+  { label: '100 KB', bytes: 100 * 1024 },
+  { label: '500 KB', bytes: 500 * 1024 },
+  { label: '1 MB', bytes: 1024 * 1024 },
+  { label: '5 MB', bytes: 5 * 1024 * 1024 },
+];

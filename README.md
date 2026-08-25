@@ -20,6 +20,7 @@ Built with React 19, TypeScript, and the Canvas API.
 **Export**
 - **Multiple Formats** — JPEG, PNG, WebP, and AVIF where the browser can encode it (unsupported formats are disabled rather than silently falling back)
 - **Quality Control** — Adjustable quality, with the size estimate produced by the real export pipeline
+- **Fit to a Size** — Give it a target ("under 500 KB") and it searches for the best quality that fits, only reducing dimensions if quality alone can't get there
 - **Batch Processing** — Tick which images to export, then either export each with its own edits or push the current image's look onto the rest; ZIP output
 - **Metadata Stripping** — EXIF data automatically removed on export for privacy
 
@@ -38,6 +39,8 @@ Press `?` anywhere in the app for this list.
 | Key | Action |
 |-----|--------|
 | `C` | Crop |
+| Arrows | Move the crop region (Shift for 10px) |
+| Alt+Arrows | Resize the crop region (Shift for 10px) |
 | `V` | Resize |
 | `R` | Rotate & flip |
 | `A` | Colour adjustments |

@@ -8,6 +8,7 @@ import { buildExportOptions, downloadBlob, sanitizeFileName, predictOutputSize }
 import { useExportEstimate } from '@/components/export/useExportEstimate';
 import { useSupportedFormats } from '@/components/export/useSupportedFormats';
 import { BatchExport } from '@/components/export/BatchExport';
+import { TargetSizePanel } from '@/components/export/TargetSizePanel';
 
 export function ExportPanel() {
   const activeImage = useImageStore((s) => s.images.find((i) => i.id === s.activeImageId));
@@ -133,6 +134,8 @@ export function ExportPanel() {
           </div>
         </div>
       )}
+
+      <TargetSizePanel image={activeImage} />
 
       {/* Size summary */}
       <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">

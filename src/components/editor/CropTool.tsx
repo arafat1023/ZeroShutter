@@ -2,6 +2,7 @@ import { useImageStore } from '@/stores/useImageStore';
 import { useViewStore } from '@/stores/useViewStore';
 import { ASPECT_RATIO_PRESETS, SOCIAL_PRESETS } from '@/lib/constants';
 import { cropForAspect } from '@/lib/cropGeometry';
+import { CropFields } from '@/components/editor/CropFields';
 import type { AspectRatioPreset } from '@/types';
 
 export function CropTool() {
@@ -59,6 +60,8 @@ export function CropTool() {
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Social sizes</h3>
         <div className="grid grid-cols-2 gap-1.5">{SOCIAL_PRESETS.map(presetButton)}</div>
       </div>
+
+      <CropFields image={activeImage} />
 
       <dl className="space-y-1 rounded-lg bg-zinc-800/50 p-3 text-xs">
         <div className="flex justify-between">
