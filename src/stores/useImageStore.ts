@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type {
   ImageFile, EditState, ActiveTool, CropData, OutputFormat,
   ColorAdjustments, ColorPreset, WatermarkData,
-  BorderData, HistoryEntry, Notification, NotificationKind,
+  BorderData, HistoryEntry, Notification, NotificationKind, ResizeFit,
 } from '@/types';
 import { generateId } from '@/lib/format';
 import { forgetWatermarkArtwork } from '@/lib/imageProcessor';
@@ -111,6 +111,8 @@ interface ImageStore {
   // Geometry
   setCrop: (crop: CropData | null) => void;
   setResize: (width: number, height: number, maintainAspectRatio?: boolean) => void;
+  setResizeFit: (fit: ResizeFit) => void;
+  setResizeBackground: (background: string) => void;
   clearResize: () => void;
   setRotation: (angle: number) => void;
   setFlipH: (flip: boolean) => void;
@@ -425,8 +427,22 @@ export const useImageStore = create<ImageStore>((set, get) => {
     setResize: (width, height, maintainAspectRatio = true) =>
       patchEdit((s) => ({
         ...s,
-        resize: { width, height, maintainAspectRatio, mode: 'pixels' },
+        resize: {
+          width,
+          height,
+          maintainAspectRatio,
+          mode: 'pixels',
+          // Preserve whatever fit the user already chose for this image.
+          fit: s.resize?.fit ?? 'stretch',
+          background: s.resize?.background ?? '#ffffff',
+        },
       })),
+
+    setResizeFit: (fit) =>
+      patchEdit((s) => (s.resize ? { ...s, resize: { ...s.resize, fit } } : s)),
+
+    setResizeBackground: (background) =>
+      patchEdit((s) => (s.resize ? { ...s, resize: { ...s.resize, background } } : s)),
 
     clearResize: () => patchEdit((s) => ({ ...s, resize: null })),
 

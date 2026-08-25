@@ -7,6 +7,8 @@ export function buildExportOptions(editState: EditState): PipelineOptions {
     crop: editState.crop,
     resizeWidth: editState.resize?.width,
     resizeHeight: editState.resize?.height,
+    resizeFit: editState.resize?.fit,
+    resizeBackground: editState.resize?.background,
     rotate: editState.rotate,
     colorAdjustments: editState.colorAdjustments,
     watermark: editState.watermark,
@@ -22,12 +24,19 @@ export function buildExportOptions(editState: EditState): PipelineOptions {
  * next one.
  */
 export function buildUniformBatchOptions(editState: EditState): PipelineOptions {
-  return { ...buildExportOptions(editState), crop: null, resizeWidth: undefined, resizeHeight: undefined };
+  const base = { ...buildExportOptions(editState), crop: null };
+  // A stretch resize sized for one image distorts the rest. `contain` and
+  // `cover` keep the aspect ratio, so a shared target size is safe there.
+  if (editState.resize && editState.resize.fit !== 'stretch') return base;
+  return { ...base, resizeWidth: undefined, resizeHeight: undefined };
 }
 
 /** Lists the edits that uniform batch export carries over, for display in the UI. */
 export function describeBatchEdits(editState: EditState): string[] {
   const applied: string[] = ['format', 'quality'];
+  if (editState.resize && editState.resize.fit !== 'stretch') {
+    applied.push(`resize (${editState.resize.fit})`);
+  }
   const { rotate, colorAdjustments: c } = editState;
   if (rotate.angle !== 0 || rotate.flipH || rotate.flipV) applied.push('rotate/flip');
   if (c.brightness || c.contrast || c.saturation || c.hue || c.sharpness || c.invert) applied.push('colour');

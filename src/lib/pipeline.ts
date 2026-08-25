@@ -5,7 +5,7 @@
  * `HTMLCanvasElement` (main-thread fallback), so the exact same code path
  * produces the exported bytes regardless of where it runs.
  */
-import type { CropData, RotateData, OutputFormat, ColorAdjustments, WatermarkData, BorderData } from '@/types';
+import type { CropData, RotateData, OutputFormat, ColorAdjustments, WatermarkData, BorderData, ResizeFit } from '@/types';
 
 export type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
 export type AnyCtx = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
@@ -15,6 +15,8 @@ export interface PipelineOptions {
   crop?: CropData | null;
   resizeWidth?: number;
   resizeHeight?: number;
+  resizeFit?: ResizeFit;
+  resizeBackground?: string;
   rotate?: RotateData;
   colorAdjustments?: ColorAdjustments;
   watermark?: WatermarkData | null;
@@ -122,6 +124,40 @@ export function resizeImage(source: PipelineSource, targetWidth: number, targetH
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(current, 0, 0, tw, th);
+  return canvas;
+}
+
+/**
+ * Places the source inside a target box. `contain` and `cover` preserve the
+ * aspect ratio, which is what makes a single target size safe to apply across
+ * images of differing shapes.
+ */
+export function fitImage(
+  source: PipelineSource,
+  targetWidth: number,
+  targetHeight: number,
+  fit: ResizeFit,
+  background: string
+): AnyCanvas {
+  const tw = Math.max(1, Math.round(targetWidth));
+  const th = Math.max(1, Math.round(targetHeight));
+  if (fit === 'stretch') return resizeImage(source, tw, th);
+
+  const { w: sw, h: sh } = dimensions(source);
+  const ratio = fit === 'cover' ? Math.max(tw / sw, th / sh) : Math.min(tw / sw, th / sh);
+  const dw = Math.max(1, Math.round(sw * ratio));
+  const dh = Math.max(1, Math.round(sh * ratio));
+
+  // Route through resizeImage so the step-down quality path still applies.
+  const scaled = resizeImage(source, dw, dh);
+
+  const canvas = createCanvas(tw, th);
+  const ctx = ctx2d(canvas);
+  if (background && background !== 'transparent') {
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, tw, th);
+  }
+  ctx.drawImage(scaled, Math.round((tw - dw) / 2), Math.round((th - dh) / 2));
   return canvas;
 }
 
@@ -520,7 +556,13 @@ export function runPipeline(source: PipelineSource, options: PipelineOptions): A
   }
 
   if (options.resizeWidth && options.resizeHeight) {
-    result = resizeImage(result, options.resizeWidth, options.resizeHeight);
+    result = fitImage(
+      result,
+      options.resizeWidth,
+      options.resizeHeight,
+      options.resizeFit ?? 'stretch',
+      options.resizeBackground ?? '#ffffff'
+    );
   }
 
   if (options.colorAdjustments && hasColorChanges(options.colorAdjustments)) {

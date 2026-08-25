@@ -8,7 +8,7 @@ Built with React 19, TypeScript, and the Canvas API.
 
 **Core Editing**
 - **Crop** — Interactive cropper with aspect ratio presets (1:1, 4:3, 16:9, social media sizes, and more)
-- **Resize** — By pixels or percentage with aspect ratio lock
+- **Resize** — By pixels or percentage with aspect ratio lock, and a fit mode: stretch, contain (padded) or cover (cropped), so one target size can be applied to images of any shape
 - **Rotate & Flip** — 90-degree increments, horizontal/vertical flip, custom rotation
 
 **Adjustments**
@@ -21,7 +21,7 @@ Built with React 19, TypeScript, and the Canvas API.
 - **Multiple Formats** — JPEG, PNG, WebP, and AVIF where the browser can encode it (unsupported formats are disabled rather than silently falling back)
 - **Quality Control** — Adjustable quality, with the size estimate produced by the real export pipeline
 - **Fit to a Size** — Give it a target ("under 500 KB") and it searches for the best quality that fits, only reducing dimensions if quality alone can't get there
-- **Batch Processing** — Tick which images to export, then either export each with its own edits or push the current image's look onto the rest; ZIP output
+- **Batch Processing** — Tick which images to export, then either export each with its own edits or push the current image's look onto the rest. With contain/cover, a single target size applies cleanly across differently-shaped images. ZIP output
 - **Metadata Stripping** — EXIF data automatically removed on export for privacy
 
 **Workflow**

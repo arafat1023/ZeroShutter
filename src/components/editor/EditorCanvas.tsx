@@ -6,7 +6,7 @@ import { predictOutputSize } from '@/lib/exportOptions';
 import { CompareSlider } from '@/components/shared/CompareSlider';
 import { CropStage } from '@/components/editor/CropStage';
 import { PreviewStage } from '@/components/editor/PreviewStage';
-import { composedSize, rotatedSize } from '@/lib/previewGeometry';
+import { composedSize } from '@/lib/previewGeometry';
 import { SharpenFilter } from '@/components/editor/SharpenFilter';
 import { CanvasToolbar } from '@/components/editor/CanvasToolbar';
 import { EditBadges } from '@/components/editor/EditBadges';
@@ -42,12 +42,13 @@ export function EditorCanvas() {
   const composed = activeImage ? composedSize(activeImage, editState) : null;
 
   // While cropping we work on the untransformed image, so the viewport has to
-  // make room for the full frame rather than the composed result.
+  // make room for the full frame rather than the composed result. Otherwise the
+  // composed size already accounts for rotation, resize and border.
   const bounds =
     activeImage && isCropping
       ? { width: activeImage.width, height: activeImage.height }
       : composed
-      ? rotatedSize(composed.width, composed.height, editState.rotate.angle)
+      ? { width: composed.width, height: composed.height }
       : null;
 
   // Fit mode never enlarges past 100%, so small images stay crisp.

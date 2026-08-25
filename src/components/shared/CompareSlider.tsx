@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import type { EditState, ImageFile } from '@/types';
 import { PreviewStage } from '@/components/editor/PreviewStage';
-import { composedSize, rotatedSize } from '@/lib/previewGeometry';
+import { composedSize } from '@/lib/previewGeometry';
 
 interface CompareSliderProps {
   image: ImageFile;
@@ -30,9 +30,8 @@ export function CompareSlider({ image, editState, scale, sharpenFilterId }: Comp
   const containerRef = useRef<HTMLDivElement>(null);
 
   const composed = composedSize(image, editState);
-  const bounds = rotatedSize(composed.width, composed.height, editState.rotate.angle);
-  const width = bounds.width * scale;
-  const height = bounds.height * scale;
+  const width = composed.width * scale;
+  const height = composed.height * scale;
 
   const updateFromClientX = useCallback((clientX: number) => {
     const rect = containerRef.current?.getBoundingClientRect();

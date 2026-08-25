@@ -16,11 +16,22 @@ export interface CropData {
   height: number;
 }
 
+/**
+ * How an image is made to occupy the target box.
+ * - `stretch` distorts to fill it exactly
+ * - `contain` fits inside and pads the remainder
+ * - `cover` fills the box and crops the overflow
+ */
+export type ResizeFit = 'stretch' | 'contain' | 'cover';
+
 export interface ResizeData {
   width: number;
   height: number;
   maintainAspectRatio: boolean;
   mode: 'pixels' | 'percentage';
+  fit: ResizeFit;
+  /** Padding colour for `contain`; 'transparent' leaves alpha untouched. */
+  background: string;
 }
 
 export interface RotateData {

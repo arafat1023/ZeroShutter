@@ -5,7 +5,7 @@ import {
 import { DropZone } from '@/components/upload/DropZone';
 
 const FEATURES = [
-  { icon: Crop, title: 'Crop & Resize', description: 'Freeform or aspect-ratio crop with precise pixel resizing.' },
+  { icon: Crop, title: 'Crop & Resize', description: 'Freeform or aspect-ratio crop, plus contain/cover fitting to an exact size.' },
   { icon: Palette, title: 'Colour Adjustments', description: 'Brightness, contrast, saturation, and more — all in real time.' },
   { icon: Stamp, title: 'Watermark', description: 'Text or your own logo, with position, tiling, rotation and opacity.' },
   { icon: Layers, title: 'Batch Processing', description: 'Pick which images to export, edit them individually or all at once, get a ZIP.' },

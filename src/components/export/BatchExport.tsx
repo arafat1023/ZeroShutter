@@ -147,7 +147,13 @@ export function BatchExport() {
           <>
             Applies <span className="text-zinc-200">{describeBatchEdits(editState).join(', ')}</span> from{' '}
             <span className="text-zinc-200">{activeImage?.name ?? 'this image'}</span> to all selected.
-            Crop and resize are skipped — they are measured against one image.
+            Crop is skipped — its coordinates belong to one image.
+            {editState.resize?.fit === 'stretch' && (
+              <>
+                {' '}A stretch resize is skipped too, since it would distort images of
+                other shapes — switch it to Contain or Cover to apply one size to all.
+              </>
+            )}
           </>
         )}
       </p>

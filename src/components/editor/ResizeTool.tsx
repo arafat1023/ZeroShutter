@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, Unlink } from 'lucide-react';
 import { useImageStore } from '@/stores/useImageStore';
+import { ResizeFitControls } from '@/components/editor/ResizeFitControls';
 
 const SCALE_STEPS = [25, 50, 75, 100, 150, 200];
 
@@ -125,6 +126,8 @@ export function ResizeTool() {
           ))}
         </div>
       </div>
+
+      {applied && <ResizeFitControls resize={applied} />}
 
       <div className="space-y-1 rounded-lg bg-zinc-800/50 p-3 text-xs">
         <div className="flex justify-between">
