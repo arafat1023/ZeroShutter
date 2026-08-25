@@ -81,6 +81,39 @@ export interface ProcessResult {
   height: number;
 }
 
+// ─── Watermark artwork ───────────────────────────────────────
+
+const artworkBlobs = new Map<string, Promise<Blob>>();
+
+/**
+ * Resolves a watermark's blob URL to a fresh ImageBitmap. Bitmaps are consumed
+ * (transferred to the worker, or closed) on every run, so a new one is made per
+ * call; only the fetch is cached.
+ */
+async function decodeWatermarkArtwork(options: PipelineOptions): Promise<ImageBitmap | null> {
+  const url = options.watermark?.type === 'image' ? options.watermark.imageUrl : null;
+  if (!url) return null;
+
+  let blob = artworkBlobs.get(url);
+  if (!blob) {
+    blob = fetch(url).then((response) => response.blob());
+    artworkBlobs.set(url, blob);
+  }
+
+  try {
+    return await createImageBitmap(await blob);
+  } catch {
+    // A revoked or unreadable URL should not take the whole export down.
+    artworkBlobs.delete(url);
+    return null;
+  }
+}
+
+/** Drops cached artwork for a URL that is about to be revoked. */
+export function forgetWatermarkArtwork(url: string): void {
+  artworkBlobs.delete(url);
+}
+
 // ─── Public pipeline API ─────────────────────────────────────
 
 /**
@@ -88,45 +121,53 @@ export interface ProcessResult {
  * browser supports it, and falls back to the main thread otherwise.
  */
 export async function processImage(source: Blob, options: PipelineOptions): Promise<ProcessResult> {
-  const decoded = await decode(source);
+  const [decoded, artwork] = await Promise.all([decode(source), decodeWatermarkArtwork(options)]);
+  const withArtwork: PipelineOptions = { ...options, watermarkImage: artwork };
 
   if (isBitmap(decoded)) {
     const activeWorker = getWorker();
     if (activeWorker) {
       const bitmap = decoded;
       const id = nextRequestId++;
-      const request: WorkerRequest = { id, bitmap, options };
+      const request: WorkerRequest = { id, bitmap, options: withArtwork };
       const result = new Promise<ProcessResult>((resolve, reject) => {
         pending.set(id, { resolve, reject });
       });
-      // The bitmap is transferred, so the worker owns (and closes) it from here.
-      activeWorker.postMessage(request, [bitmap]);
+      // Both bitmaps are transferred, so the worker owns (and closes) them.
+      const transfer: Transferable[] = artwork ? [bitmap, artwork] : [bitmap];
+      activeWorker.postMessage(request, transfer);
 
       try {
         return await result;
       } catch {
-        // The worker died or refused the job. The bitmap went with it, so
+        // The worker died or refused the job. The bitmaps went with it, so
         // decode again and finish on the main thread rather than failing.
         return processOnMainThread(source, options);
       }
     }
 
     try {
-      return await renderToBlob(decoded, options);
+      return await renderToBlob(decoded, withArtwork);
     } finally {
       decoded.close();
+      artwork?.close();
     }
   }
 
-  return renderToBlob(decoded, options);
+  try {
+    return await renderToBlob(decoded, withArtwork);
+  } finally {
+    artwork?.close();
+  }
 }
 
 async function processOnMainThread(source: Blob, options: PipelineOptions): Promise<ProcessResult> {
-  const decoded = await decode(source);
+  const [decoded, artwork] = await Promise.all([decode(source), decodeWatermarkArtwork(options)]);
   try {
-    return await renderToBlob(decoded, options);
+    return await renderToBlob(decoded, { ...options, watermarkImage: artwork });
   } finally {
     if (isBitmap(decoded)) decoded.close();
+    artwork?.close();
   }
 }
 

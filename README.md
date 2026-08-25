@@ -14,13 +14,13 @@ Built with React 19, TypeScript, and the Canvas API.
 **Adjustments**
 - **Color Controls** — Brightness, contrast, saturation, hue, and sharpness sliders
 - **Presets** — Grayscale, sepia, warm, cool, high contrast, vintage, plus an invert toggle
-- **Watermark** — Text overlays with tiling, positioning, opacity, and rotation
+- **Watermark** — Text or image/logo overlays with tiling, positioning, opacity, and rotation
 - **Borders** — Solid color or blur borders with per-side controls
 
 **Export**
 - **Multiple Formats** — JPEG, PNG, WebP, and AVIF where the browser can encode it (unsupported formats are disabled rather than silently falling back)
 - **Quality Control** — Adjustable quality, with the size estimate produced by the real export pipeline
-- **Batch Processing** — Apply format, quality, resize, rotate, colour, watermark and border to every image and export as ZIP
+- **Batch Processing** — Apply format, quality, resize, rotate, colour, watermark/logo and border to every image and export as ZIP
 - **Metadata Stripping** — EXIF data automatically removed on export for privacy
 
 **Workflow**

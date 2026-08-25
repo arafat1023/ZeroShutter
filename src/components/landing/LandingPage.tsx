@@ -7,7 +7,7 @@ import { DropZone } from '@/components/upload/DropZone';
 const FEATURES = [
   { icon: Crop, title: 'Crop & Resize', description: 'Freeform or aspect-ratio crop with precise pixel resizing.' },
   { icon: Palette, title: 'Colour Adjustments', description: 'Brightness, contrast, saturation, and more — all in real time.' },
-  { icon: Stamp, title: 'Watermark', description: 'Text watermarks with full position, tiling, and opacity control.' },
+  { icon: Stamp, title: 'Watermark', description: 'Text or your own logo, with position, tiling, rotation and opacity.' },
   { icon: Layers, title: 'Batch Processing', description: 'Apply edits to dozens of images at once and export as a ZIP.' },
   { icon: FileOutput, title: 'Format Conversion', description: 'Convert between JPEG, PNG, WebP, and AVIF where supported.' },
   { icon: FileSearch, title: 'EXIF Metadata', description: 'Inspect camera data — and strip it automatically on export.' },

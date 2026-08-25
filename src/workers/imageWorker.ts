@@ -26,5 +26,6 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     self.postMessage(response);
   } finally {
     bitmap.close();
+    options.watermarkImage?.close();
   }
 };

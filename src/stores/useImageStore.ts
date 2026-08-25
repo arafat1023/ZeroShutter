@@ -5,6 +5,7 @@ import type {
   BorderData, HistoryEntry, Notification, NotificationKind,
 } from '@/types';
 import { generateId } from '@/lib/format';
+import { forgetWatermarkArtwork } from '@/lib/imageProcessor';
 import { DEFAULT_QUALITY, MAX_HISTORY_ENTRIES } from '@/lib/constants';
 
 // ─── Defaults ────────────────────────────────────────────────
@@ -78,6 +79,12 @@ interface ImageStore {
   showCompare: boolean;
   notifications: Notification[];
 
+  /**
+   * Blob URLs for uploaded watermark artwork. Held for the whole session
+   * because undo/redo snapshots reference them; revoked when images are cleared.
+   */
+  watermarkAssets: string[];
+
   // Notifications
   notify: (kind: NotificationKind, message: string) => void;
   dismissNotification: (id: string) => void;
@@ -110,6 +117,7 @@ interface ImageStore {
   // Watermark
   setWatermark: (wm: WatermarkData | null) => void;
   updateWatermark: (partial: Partial<WatermarkData>) => void;
+  setWatermarkImage: (asset: WatermarkAsset | null) => void;
 
   // Border
   setBorder: (border: BorderData | null) => void;
@@ -141,6 +149,13 @@ const PRESET_VALUES: Record<ColorPreset, Partial<ColorAdjustments>> = {
   vintage: { brightness: -4, contrast: -12, saturation: -35, hue: 14 },
 };
 
+export interface WatermarkAsset {
+  url: string;
+  name: string;
+  width: number;
+  height: number;
+}
+
 // ─── Store ───────────────────────────────────────────────────
 
 export const useImageStore = create<ImageStore>((set, get) => {
@@ -160,6 +175,7 @@ export const useImageStore = create<ImageStore>((set, get) => {
     historyIndex: -1,
     showCompare: false,
     notifications: [],
+    watermarkAssets: [],
 
     // ── Notifications ────────────────────────────
 
@@ -276,11 +292,15 @@ export const useImageStore = create<ImageStore>((set, get) => {
 
     clearImages: () => {
       get().images.forEach((img) => URL.revokeObjectURL(img.originalUrl));
+      get().watermarkAssets.forEach((url) => {
+        forgetWatermarkArtwork(url);
+        URL.revokeObjectURL(url);
+      });
       const fresh = createSession(get().editState.exportSettings);
       set({
         images: [], activeImageId: null, sessions: {},
         editState: fresh.editState, history: [], historyIndex: -1,
-        activeTool: null, mode: 'single', showCompare: false,
+        activeTool: null, mode: 'single', showCompare: false, watermarkAssets: [],
       });
     },
 
@@ -386,6 +406,25 @@ export const useImageStore = create<ImageStore>((set, get) => {
         ...s,
         watermark: s.watermark ? { ...s.watermark, ...partial } : null,
       })),
+
+    setWatermarkImage: (asset) =>
+      set((state) => {
+        if (!state.editState.watermark) return state;
+        return {
+          editState: {
+            ...state.editState,
+            watermark: {
+              ...state.editState.watermark,
+              type: asset ? 'image' : state.editState.watermark.type,
+              imageUrl: asset?.url ?? null,
+              imageName: asset?.name ?? null,
+              imageWidth: asset?.width ?? null,
+              imageHeight: asset?.height ?? null,
+            },
+          },
+          watermarkAssets: asset ? [...state.watermarkAssets, asset.url] : state.watermarkAssets,
+        };
+      }),
 
     // ── Border ───────────────────────────────────
 

@@ -28,7 +28,7 @@ export function EditBadges({ editState }: { editState: EditState }) {
     if (color.sharpness) badges.push(`Sharpen ${color.sharpness}`);
   }
 
-  if (watermark) badges.push('Watermark');
+  if (watermark) badges.push(watermark.type === 'image' ? 'Logo' : 'Watermark');
   if (border) badges.push(border.mode === 'blur' ? 'Blur border' : 'Border');
 
   if (badges.length === 0) return null;

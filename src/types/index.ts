@@ -54,6 +54,10 @@ export interface WatermarkData {
   rotation: number;
   // Image watermark
   imageUrl: string | null;
+  imageName: string | null;
+  /** Natural size of the uploaded image, so preview and export agree on aspect. */
+  imageWidth: number | null;
+  imageHeight: number | null;
   imageOpacity: number;  // 0-1
   // Positioning
   position: WatermarkPosition;

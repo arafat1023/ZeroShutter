@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { WatermarkData } from '@/types';
-import { watermarkTilePositions } from '@/lib/pipeline';
+import { watermarkTilePositions, watermarkImageSize, watermarkImageCentre } from '@/lib/pipeline';
 
 interface WatermarkOverlayProps {
   watermark: WatermarkData;
@@ -14,13 +14,37 @@ interface WatermarkOverlayProps {
 const MAX_PREVIEW_TILES = 1200;
 
 /**
- * DOM mirror of the canvas watermark renderer. Both anchor text by its centre
- * and rotate around that centre, so the preview lines up with the export.
+ * DOM mirror of the canvas watermark renderer. Placement comes from the same
+ * helpers the pipeline uses, so the preview and the export cannot drift.
  */
 export function WatermarkOverlay({ watermark, scale, canvasWidth, canvasHeight }: WatermarkOverlayProps) {
+  const tiles = useMemo(() => {
+    if (!watermark.tiling) return [];
+    const positions = watermarkTilePositions(watermark, canvasWidth, canvasHeight);
+    // A dense grid on a huge image would create thousands of DOM nodes; the
+    // preview thins out beyond a point while the export stays exact.
+    if (positions.length <= MAX_PREVIEW_TILES) return positions;
+    const stride = Math.ceil(positions.length / MAX_PREVIEW_TILES);
+    return positions.filter((_, index) => index % stride === 0);
+  }, [watermark, canvasWidth, canvasHeight]);
+
+  if (watermark.type === 'image') {
+    return (
+      <ImageWatermark
+        watermark={watermark}
+        scale={scale}
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
+        tiles={tiles}
+      />
+    );
+  }
+
   const text = watermark.text.trim();
+  if (!text) return null;
 
   const textStyle: CSSProperties = {
+    position: 'absolute',
     fontFamily: watermark.fontFamily,
     fontSize: watermark.fontSize * scale,
     fontWeight: watermark.bold ? 'bold' : 'normal',
@@ -29,22 +53,7 @@ export function WatermarkOverlay({ watermark, scale, canvasWidth, canvasHeight }
     color: watermark.fontColor,
     opacity: watermark.fontOpacity,
     whiteSpace: 'nowrap',
-    position: 'absolute',
   };
-
-  const tiles = useMemo(() => {
-    if (!watermark.tiling) return [];
-    const spacing = Math.max(20, watermark.tileSpacing || 200);
-    const overflow = Math.max(canvasWidth, canvasHeight) * 0.5;
-    const positions = watermarkTilePositions(spacing, overflow, canvasWidth, canvasHeight);
-    // A dense grid on a huge image would create thousands of DOM nodes; the
-    // preview thins out beyond a point while the export stays exact.
-    if (positions.length <= MAX_PREVIEW_TILES) return positions;
-    const stride = Math.ceil(positions.length / MAX_PREVIEW_TILES);
-    return positions.filter((_, index) => index % stride === 0);
-  }, [watermark.tiling, watermark.tileSpacing, canvasWidth, canvasHeight]);
-
-  if (!text) return null;
 
   if (watermark.tiling) {
     const angle = watermark.rotation || -30;
@@ -67,6 +76,8 @@ export function WatermarkOverlay({ watermark, scale, canvasWidth, canvasHeight }
     );
   }
 
+  // The rendered text width is unknown here, so anchor by edge + margin —
+  // which lands in the same place as the centre-based canvas maths.
   const margin = watermark.fontSize * 0.8 * scale;
   const position = watermark.position;
   const centredX = !position.endsWith('-left') && !position.endsWith('-right');
@@ -95,6 +106,46 @@ export function WatermarkOverlay({ watermark, scale, canvasWidth, canvasHeight }
       >
         {text}
       </span>
+    </div>
+  );
+}
+
+function ImageWatermark({
+  watermark, scale, canvasWidth, canvasHeight, tiles,
+}: WatermarkOverlayProps & { tiles: { x: number; y: number }[] }) {
+  if (!watermark.imageUrl || !watermark.imageWidth || !watermark.imageHeight) return null;
+
+  const size = watermarkImageSize(watermark, watermark.imageWidth, watermark.imageHeight, canvasWidth);
+  const style: CSSProperties = {
+    position: 'absolute',
+    width: size.width * scale,
+    height: size.height * scale,
+    opacity: watermark.imageOpacity,
+  };
+
+  const angle = watermark.tiling ? watermark.rotation || -30 : watermark.rotation;
+
+  const anchors = watermark.tiling
+    ? tiles
+    : [watermarkImageCentre(watermark, size, canvasWidth, canvasHeight)];
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {anchors.map((anchor, index) => (
+        <img
+          key={index}
+          src={watermark.imageUrl ?? undefined}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          style={{
+            ...style,
+            left: (anchor.x - size.width / 2) * scale,
+            top: (anchor.y - size.height / 2) * scale,
+            transform: angle !== 0 ? `rotate(${angle}deg)` : undefined,
+          }}
+        />
+      ))}
     </div>
   );
 }

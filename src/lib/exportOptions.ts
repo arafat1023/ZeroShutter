@@ -32,7 +32,7 @@ export function describeBatchEdits(editState: EditState): string[] {
   const { rotate, colorAdjustments: c } = editState;
   if (rotate.angle !== 0 || rotate.flipH || rotate.flipV) applied.push('rotate/flip');
   if (c.brightness || c.contrast || c.saturation || c.hue || c.sharpness || c.invert) applied.push('colour');
-  if (editState.watermark) applied.push('watermark');
+  if (editState.watermark) applied.push(editState.watermark.type === 'image' ? 'logo' : 'watermark');
   if (editState.border) applied.push('border');
   return applied;
 }

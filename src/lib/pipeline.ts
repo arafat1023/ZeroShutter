@@ -18,6 +18,11 @@ export interface PipelineOptions {
   rotate?: RotateData;
   colorAdjustments?: ColorAdjustments;
   watermark?: WatermarkData | null;
+  /**
+   * Decoded watermark artwork. Workers have no `Image`, and blob URLs would
+   * have to be re-fetched per call, so the caller decodes once and transfers.
+   */
+  watermarkImage?: ImageBitmap | null;
   border?: BorderData | null;
   format: OutputFormat;
   quality: number;
@@ -296,13 +301,25 @@ function applySharpen(canvas: AnyCanvas, amount: number): AnyCanvas {
 
 // ─── Watermark ───────────────────────────────────────────────
 
-export function applyWatermark(source: PipelineSource, wm: WatermarkData): AnyCanvas {
+export function applyWatermark(
+  source: PipelineSource,
+  wm: WatermarkData,
+  artwork?: ImageBitmap | null
+): AnyCanvas {
   if (wm.type === 'text' && !wm.text.trim()) return toCanvas(source);
+  if (wm.type === 'image' && !artwork) return toCanvas(source);
 
   const canvas = toCanvas(source);
   const ctx = ctx2d(canvas);
-  if (wm.tiling) drawTiledWatermark(ctx, wm, canvas.width, canvas.height);
-  else drawSingleWatermark(ctx, wm, canvas.width, canvas.height);
+
+  if (wm.type === 'image' && artwork) {
+    drawImageWatermark(ctx, wm, artwork, canvas.width, canvas.height);
+  } else if (wm.tiling) {
+    drawTiledWatermark(ctx, wm, canvas.width, canvas.height);
+  } else {
+    drawSingleWatermark(ctx, wm, canvas.width, canvas.height);
+  }
+
   return canvas;
 }
 
@@ -318,7 +335,7 @@ function drawSingleWatermark(ctx: AnyCtx, wm: WatermarkData, canvasW: number, ca
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const { x, y } = watermarkCentre(wm, ctx.measureText(wm.text).width, canvasW, canvasH);
+  const { x, y } = watermarkCentre(wm, ctx.measureText(wm.text).width, wm.fontSize, canvasW, canvasH);
 
   // Rotating around the text's own centre is both what users expect and what
   // the DOM preview does, which keeps the two in step.
@@ -336,11 +353,9 @@ function drawTiledWatermark(ctx: AnyCtx, wm: WatermarkData, canvasW: number, can
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const spacing = Math.max(20, wm.tileSpacing || 200);
   const angle = ((wm.rotation || -30) * Math.PI) / 180;
-  const overflow = Math.max(canvasW, canvasH) * 0.5;
 
-  for (const { x, y } of watermarkTilePositions(spacing, overflow, canvasW, canvasH)) {
+  for (const { x, y } of watermarkTilePositions(wm, canvasW, canvasH)) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
@@ -350,30 +365,98 @@ function drawTiledWatermark(ctx: AnyCtx, wm: WatermarkData, canvasW: number, can
   ctx.restore();
 }
 
-/**
- * Centre point of a single watermark, in source pixels. Shared with the live
- * preview so the two renderers agree on placement.
- */
-function watermarkCentre(
+function drawImageWatermark(
+  ctx: AnyCtx,
   wm: WatermarkData,
-  textWidth: number,
+  artwork: ImageBitmap,
+  canvasW: number,
+  canvasH: number
+) {
+  const size = watermarkImageSize(wm, artwork.width, artwork.height, canvasW);
+  ctx.save();
+  ctx.globalAlpha = wm.imageOpacity;
+
+  const draw = (x: number, y: number, angleDeg: number) => {
+    ctx.save();
+    ctx.translate(x, y);
+    if (angleDeg !== 0) ctx.rotate((angleDeg * Math.PI) / 180);
+    ctx.drawImage(artwork, -size.width / 2, -size.height / 2, size.width, size.height);
+    ctx.restore();
+  };
+
+  if (wm.tiling) {
+    const angle = wm.rotation || -30;
+    for (const { x, y } of watermarkTilePositions(wm, canvasW, canvasH)) draw(x, y, angle);
+  } else {
+    const { x, y } = watermarkImageCentre(wm, size, canvasW, canvasH);
+    draw(x, y, wm.rotation);
+  }
+
+  ctx.restore();
+}
+
+// ─── Watermark geometry (shared with the live preview) ───────
+
+/** Inset from the canvas edge, in source pixels. */
+function watermarkMargin(wm: WatermarkData, canvasW: number, canvasH: number): number {
+  return wm.type === 'image'
+    ? Math.min(canvasW, canvasH) * 0.03
+    : wm.fontSize * 0.8;
+}
+
+/** Rendered size of an image watermark, scaled as a percentage of canvas width. */
+export function watermarkImageSize(
+  wm: WatermarkData,
+  naturalWidth: number,
+  naturalHeight: number,
+  canvasW: number
+): { width: number; height: number } {
+  const width = Math.max(1, (canvasW * wm.scale) / 100);
+  const aspect = naturalWidth > 0 && naturalHeight > 0 ? naturalWidth / naturalHeight : 1;
+  return { width, height: width / aspect };
+}
+
+/** Centre point of an image watermark, in source pixels. */
+export function watermarkImageCentre(
+  wm: WatermarkData,
+  size: { width: number; height: number },
   canvasW: number,
   canvasH: number
 ): { x: number; y: number } {
-  const margin = wm.fontSize * 0.8;
-  const half = wm.fontSize / 2;
+  return anchorCentre(wm, size.width, size.height, canvasW, canvasH);
+}
+
+/** Centre point of a text watermark, in source pixels. */
+function watermarkCentre(
+  wm: WatermarkData,
+  textWidth: number,
+  textHeight: number,
+  canvasW: number,
+  canvasH: number
+): { x: number; y: number } {
+  return anchorCentre(wm, textWidth, textHeight, canvasW, canvasH);
+}
+
+function anchorCentre(
+  wm: WatermarkData,
+  width: number,
+  height: number,
+  canvasW: number,
+  canvasH: number
+): { x: number; y: number } {
+  const margin = watermarkMargin(wm, canvasW, canvasH);
   const pos = wm.position;
 
   const x = pos.endsWith('-left')
-    ? margin + textWidth / 2
+    ? margin + width / 2
     : pos.endsWith('-right')
-    ? canvasW - margin - textWidth / 2
+    ? canvasW - margin - width / 2
     : canvasW / 2;
 
   const y = pos.startsWith('top')
-    ? margin + half
+    ? margin + height / 2
     : pos.startsWith('bottom')
-    ? canvasH - margin - half
+    ? canvasH - margin - height / 2
     : canvasH / 2;
 
   return { x, y };
@@ -381,11 +464,12 @@ function watermarkCentre(
 
 /** Grid anchors for a tiled watermark, in source pixels. */
 export function watermarkTilePositions(
-  spacing: number,
-  overflow: number,
+  wm: WatermarkData,
   canvasW: number,
   canvasH: number
 ): { x: number; y: number }[] {
+  const spacing = Math.max(20, wm.tileSpacing || 200);
+  const overflow = Math.max(canvasW, canvasH) * 0.5;
   const positions: { x: number; y: number }[] = [];
   for (let y = -overflow; y < canvasH + overflow; y += spacing) {
     for (let x = -overflow; x < canvasW + overflow; x += spacing) {
@@ -446,7 +530,7 @@ export function runPipeline(source: PipelineSource, options: PipelineOptions): A
   if (options.border) result = applyBorder(result, options.border);
 
   // Watermark last so it sits on top of the border too.
-  if (options.watermark) result = applyWatermark(result, options.watermark);
+  if (options.watermark) result = applyWatermark(result, options.watermark, options.watermarkImage);
 
   return toCanvas(result);
 }

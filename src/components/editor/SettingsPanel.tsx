@@ -28,7 +28,7 @@ const HINTS: Record<Exclude<ActiveTool, null>, string> = {
   resize: 'Change the output dimensions. The preview keeps its shape.',
   rotate: 'Rotate in 90° steps or set any angle.',
   color: 'Every change previews live on the canvas.',
-  watermark: 'Position, tile, and rotate a text watermark.',
+  watermark: 'Overlay text or a logo, then position, tile, and rotate it.',
   border: 'Add solid or blurred padding around the image.',
   metadata: 'EXIF read from the original file.',
   history: 'Jump back to any point in this session.',
