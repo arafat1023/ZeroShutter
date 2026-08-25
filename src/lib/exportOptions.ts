@@ -17,18 +17,17 @@ export function buildExportOptions(editState: EditState): PipelineOptions {
 }
 
 /**
- * Batch mode reuses every global adjustment but drops the crop: crop
- * coordinates are measured against one specific image and mean nothing on
- * the next one.
+ * "Uniform" batch mode reuses the active image's look but drops crop and
+ * resize: both are measured against one specific image and mean nothing on the
+ * next one.
  */
-export function buildBatchOptions(editState: EditState): PipelineOptions {
-  return { ...buildExportOptions(editState), crop: null };
+export function buildUniformBatchOptions(editState: EditState): PipelineOptions {
+  return { ...buildExportOptions(editState), crop: null, resizeWidth: undefined, resizeHeight: undefined };
 }
 
-/** Lists the edits that batch export carries over, for display in the UI. */
+/** Lists the edits that uniform batch export carries over, for display in the UI. */
 export function describeBatchEdits(editState: EditState): string[] {
   const applied: string[] = ['format', 'quality'];
-  if (editState.resize) applied.push('resize');
   const { rotate, colorAdjustments: c } = editState;
   if (rotate.angle !== 0 || rotate.flipH || rotate.flipV) applied.push('rotate/flip');
   if (c.brightness || c.contrast || c.saturation || c.hue || c.sharpness || c.invert) applied.push('colour');

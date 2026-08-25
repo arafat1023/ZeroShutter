@@ -35,6 +35,7 @@ async function snapshot(): Promise<PersistedSession> {
     history: state.history,
     historyIndex: state.historyIndex,
     sessions: state.sessions,
+    selectedImageIds: state.selectedImageIds,
     watermarkAssets: watermarkAssets.filter((asset) => asset !== null),
   };
 }

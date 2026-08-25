@@ -20,7 +20,7 @@ Built with React 19, TypeScript, and the Canvas API.
 **Export**
 - **Multiple Formats** — JPEG, PNG, WebP, and AVIF where the browser can encode it (unsupported formats are disabled rather than silently falling back)
 - **Quality Control** — Adjustable quality, with the size estimate produced by the real export pipeline
-- **Batch Processing** — Apply format, quality, resize, rotate, colour, watermark/logo and border to every image and export as ZIP
+- **Batch Processing** — Tick which images to export, then either export each with its own edits or push the current image's look onto the rest; ZIP output
 - **Metadata Stripping** — EXIF data automatically removed on export for privacy
 
 **Workflow**

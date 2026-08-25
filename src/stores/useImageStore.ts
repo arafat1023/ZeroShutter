@@ -75,6 +75,9 @@ interface ImageStore {
   /** Saved edits for every image except the active one. */
   sessions: Record<string, EditSession>;
 
+  /** Images ticked for batch export. New images join the selection. */
+  selectedImageIds: string[];
+
   history: HistoryEntry[];
   historyIndex: number;
 
@@ -98,6 +101,12 @@ interface ImageStore {
   setActiveImage: (id: string | null) => void;
   setMode: (mode: 'single' | 'batch') => void;
   setActiveTool: (tool: ActiveTool) => void;
+
+  // Batch selection
+  toggleImageSelected: (id: string) => void;
+  setAllImagesSelected: (selected: boolean) => void;
+  /** Copies the source image's edits onto the given targets. */
+  copyEditsToImages: (sourceId: string, targetIds: string[]) => number;
 
   // Geometry
   setCrop: (crop: CropData | null) => void;
@@ -142,6 +151,8 @@ interface ImageStore {
   // Computed
   activeImage: () => ImageFile | undefined;
   hasEdits: () => boolean;
+  /** The edits that apply to one image, whether or not it is the active one. */
+  editStateFor: (id: string) => EditState;
 }
 
 const PRESET_VALUES: Record<ColorPreset, Partial<ColorAdjustments>> = {
@@ -176,6 +187,7 @@ export const useImageStore = create<ImageStore>((set, get) => {
     activeTool: null,
     isLoadingImages: false,
     sessions: {},
+    selectedImageIds: [],
     history: [],
     historyIndex: -1,
     showCompare: false,
@@ -234,6 +246,7 @@ export const useImageStore = create<ImageStore>((set, get) => {
           images: allImages,
           activeImageId: nextActiveId,
           sessions,
+          selectedImageIds: [...state.selectedImageIds, ...newImages.map((img) => img.id)],
           mode: allImages.length > 1 ? 'batch' : state.mode,
           isLoadingImages: false,
           ...(activeSession
@@ -270,9 +283,15 @@ export const useImageStore = create<ImageStore>((set, get) => {
         const remaining = state.images.filter((i) => i.id !== id);
         const sessions = { ...state.sessions };
         delete sessions[id];
+        const selectedImageIds = state.selectedImageIds.filter((s) => s !== id);
 
         if (state.activeImageId !== id) {
-          return { images: remaining, sessions, mode: remaining.length <= 1 ? 'single' : state.mode };
+          return {
+            images: remaining,
+            sessions,
+            selectedImageIds,
+            mode: remaining.length <= 1 ? 'single' : state.mode,
+          };
         }
 
         // The active image went away — promote the next one and load its session.
@@ -285,6 +304,7 @@ export const useImageStore = create<ImageStore>((set, get) => {
         return {
           images: remaining,
           sessions,
+          selectedImageIds,
           activeImageId: nextId,
           editState: next.editState,
           history: next.history,
@@ -304,7 +324,7 @@ export const useImageStore = create<ImageStore>((set, get) => {
       });
       const fresh = createSession(get().editState.exportSettings);
       set({
-        images: [], activeImageId: null, sessions: {},
+        images: [], activeImageId: null, sessions: {}, selectedImageIds: [],
         editState: fresh.editState, history: [], historyIndex: -1,
         activeTool: null, mode: 'single', showCompare: false, watermarkAssets: [],
       });
@@ -339,6 +359,64 @@ export const useImageStore = create<ImageStore>((set, get) => {
 
     setMode: (mode) => set({ mode }),
     setActiveTool: (tool) => set({ activeTool: tool }),
+
+    // ── Batch selection ──────────────────────────
+
+    toggleImageSelected: (id) =>
+      set((state) => ({
+        selectedImageIds: state.selectedImageIds.includes(id)
+          ? state.selectedImageIds.filter((s) => s !== id)
+          : [...state.selectedImageIds, id],
+      })),
+
+    setAllImagesSelected: (selected) =>
+      set((state) => ({ selectedImageIds: selected ? state.images.map((i) => i.id) : [] })),
+
+    /**
+     * Propagates one image's look to others. Crop is only carried across to
+     * images of identical dimensions, since its coordinates are absolute.
+     */
+    copyEditsToImages: (sourceId, targetIds) => {
+      const state = get();
+      const source = state.images.find((i) => i.id === sourceId);
+      if (!source) return 0;
+
+      const sourceEdits = state.editStateFor(sourceId);
+      const sessions = { ...state.sessions };
+      let applied = 0;
+
+      for (const targetId of targetIds) {
+        if (targetId === sourceId) continue;
+        const target = state.images.find((i) => i.id === targetId);
+        if (!target) continue;
+
+        const sameSize = target.width === source.width && target.height === source.height;
+        const next: EditState = {
+          ...structuredClone(sourceEdits),
+          crop: sameSize ? structuredClone(sourceEdits.crop) : null,
+          // A resize sized for a different source would distort; keep it only
+          // when the dimensions match.
+          resize: sameSize ? structuredClone(sourceEdits.resize) : null,
+        };
+
+        const existing = sessions[targetId] ?? createSession(state.editState.exportSettings);
+        const history = [
+          ...existing.history.slice(0, existing.historyIndex + 1),
+          {
+            id: generateId(),
+            label: `Copied edits from ${source.name}`,
+            editState: structuredClone(next),
+            timestamp: Date.now(),
+          },
+        ].slice(-MAX_HISTORY_ENTRIES);
+
+        sessions[targetId] = { editState: next, history, historyIndex: history.length - 1 };
+        applied++;
+      }
+
+      set({ sessions });
+      return applied;
+    },
 
     // ── Geometry ─────────────────────────────────
 
@@ -522,6 +600,9 @@ export const useImageStore = create<ImageStore>((set, get) => {
         history: remapHistory(session.history, urlMap),
         historyIndex: session.historyIndex,
         watermarkAssets: assetUrls,
+        selectedImageIds: session.selectedImageIds?.length
+          ? session.selectedImageIds
+          : images.map((i) => i.id),
         activeTool: null,
         showCompare: false,
       });
@@ -534,6 +615,12 @@ export const useImageStore = create<ImageStore>((set, get) => {
     activeImage: () => {
       const { images, activeImageId } = get();
       return images.find((i) => i.id === activeImageId);
+    },
+
+    editStateFor: (id) => {
+      const state = get();
+      if (id === state.activeImageId) return state.editState;
+      return state.sessions[id]?.editState ?? createDefaultEditState();
     },
 
     hasEdits: () => {

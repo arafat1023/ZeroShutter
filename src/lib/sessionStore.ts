@@ -31,6 +31,7 @@ export interface PersistedSession {
   historyIndex: number;
   sessions: Record<string, { editState: EditState; history: HistoryEntry[]; historyIndex: number }>;
   watermarkAssets: PersistedWatermarkAsset[];
+  selectedImageIds?: string[];
 }
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;
