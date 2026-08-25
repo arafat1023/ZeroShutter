@@ -63,6 +63,7 @@ export function WatermarkTool() {
           type="text"
           value={wm.text}
           onChange={(e) => updateWatermark({ text: e.target.value })}
+          onBlur={() => pushHistory('Edit watermark text')}
           className="w-full px-3 py-2 bg-zinc-800 rounded-lg text-sm text-zinc-200 border border-zinc-700 focus:outline-none focus:border-violet-500"
           placeholder="Watermark text"
         />
@@ -91,6 +92,7 @@ export function WatermarkTool() {
         <input
           type="range" min={12} max={200} value={wm.fontSize}
           onChange={(e) => updateWatermark({ fontSize: parseInt(e.target.value) })}
+          onPointerUp={() => pushHistory('Adjust watermark')}
           className="w-full accent-violet-500"
         />
       </div>
@@ -114,6 +116,7 @@ export function WatermarkTool() {
           <input
             type="range" min={5} max={100} value={Math.round(wm.fontOpacity * 100)}
             onChange={(e) => updateWatermark({ fontOpacity: parseInt(e.target.value) / 100 })}
+            onPointerUp={() => pushHistory('Adjust watermark')}
             className="w-full accent-violet-500"
           />
         </div>
@@ -146,7 +149,10 @@ export function WatermarkTool() {
           {POSITIONS.map((p) => (
             <button
               key={p.value}
-              onClick={() => updateWatermark({ position: p.value })}
+              onClick={() => {
+                updateWatermark({ position: p.value });
+                pushHistory('Move watermark');
+              }}
               className={`p-2 rounded-md text-sm transition-colors ${
                 wm.position === p.value
                   ? 'bg-violet-600 text-white'
@@ -168,6 +174,7 @@ export function WatermarkTool() {
         <input
           type="range" min={-180} max={180} value={wm.rotation}
           onChange={(e) => updateWatermark({ rotation: parseInt(e.target.value) })}
+          onPointerUp={() => pushHistory('Adjust watermark')}
           className="w-full accent-violet-500"
         />
       </div>
@@ -176,7 +183,10 @@ export function WatermarkTool() {
       <div className="flex items-center justify-between">
         <label className="text-xs text-zinc-400">Tile / Repeat</label>
         <button
-          onClick={() => updateWatermark({ tiling: !wm.tiling })}
+          onClick={() => {
+            updateWatermark({ tiling: !wm.tiling });
+            pushHistory(wm.tiling ? 'Untile watermark' : 'Tile watermark');
+          }}
           className={`relative w-10 h-5 rounded-full transition-colors ${
             wm.tiling ? 'bg-violet-600' : 'bg-zinc-700'
           }`}
@@ -198,6 +208,7 @@ export function WatermarkTool() {
           <input
             type="range" min={50} max={500} value={wm.tileSpacing}
             onChange={(e) => updateWatermark({ tileSpacing: parseInt(e.target.value) })}
+          onPointerUp={() => pushHistory('Adjust watermark')}
             className="w-full accent-violet-500"
           />
         </div>

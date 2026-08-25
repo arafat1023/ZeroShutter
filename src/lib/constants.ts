@@ -54,3 +54,60 @@ export const ACCEPTED_EXTENSIONS = '.jpg,.jpeg,.png,.webp,.avif,.bmp,.tiff,.tif,
 export const DEFAULT_QUALITY = 0.85;
 
 export const MAX_HISTORY_ENTRIES = 20;
+
+export const MAX_ZOOM = 8;
+export const MIN_ZOOM = 0.1;
+
+/** Single source of truth for shortcuts — the handler and the help sheet share it. */
+export interface ShortcutGroup {
+  title: string;
+  items: { keys: string; label: string }[];
+}
+
+export const SHORTCUT_GROUPS: ShortcutGroup[] = [
+  {
+    title: 'Tools',
+    items: [
+      { keys: 'C', label: 'Crop' },
+      { keys: 'V', label: 'Resize' },
+      { keys: 'R', label: 'Rotate & flip' },
+      { keys: 'A', label: 'Colour adjustments' },
+      { keys: 'W', label: 'Watermark' },
+      { keys: 'B', label: 'Border & padding' },
+      { keys: 'I', label: 'Image info' },
+      { keys: 'Y', label: 'Edit history' },
+      { keys: 'E', label: 'Export' },
+    ],
+  },
+  {
+    title: 'Quick edits',
+    items: [
+      { keys: '[', label: 'Rotate 90° left' },
+      { keys: ']', label: 'Rotate 90° right' },
+      { keys: 'H', label: 'Flip horizontally' },
+      { keys: 'F', label: 'Flip vertically' },
+      { keys: 'X', label: 'Toggle before / after' },
+    ],
+  },
+  {
+    title: 'View',
+    items: [
+      { keys: '+', label: 'Zoom in' },
+      { keys: '−', label: 'Zoom out' },
+      { keys: '0', label: 'Fit to screen' },
+      { keys: '1', label: 'Actual size (100%)' },
+    ],
+  },
+  {
+    title: 'General',
+    items: [
+      { keys: 'Ctrl+Z', label: 'Undo' },
+      { keys: 'Ctrl+Shift+Z', label: 'Redo' },
+      { keys: 'Ctrl+O', label: 'Open images' },
+      { keys: 'Ctrl+V', label: 'Paste image from clipboard' },
+      { keys: 'Ctrl+S', label: 'Export' },
+      { keys: '?', label: 'Show this sheet' },
+      { keys: 'Esc', label: 'Close panel / overlay' },
+    ],
+  },
+];

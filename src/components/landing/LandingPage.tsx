@@ -1,24 +1,16 @@
-import { useRef } from 'react';
 import {
-  Crop,
-  Palette,
-  Stamp,
-  Layers,
-  FileOutput,
-  FileSearch,
-  ShieldCheck,
-  EyeOff,
-  DatabaseZap,
+  Crop, Palette, Stamp, Layers, FileOutput, FileSearch,
+  ShieldCheck, EyeOff, DatabaseZap,
 } from 'lucide-react';
 import { DropZone } from '@/components/upload/DropZone';
 
 const FEATURES = [
   { icon: Crop, title: 'Crop & Resize', description: 'Freeform or aspect-ratio crop with precise pixel resizing.' },
-  { icon: Palette, title: 'Color Adjustments', description: 'Brightness, contrast, saturation, and more — all in real time.' },
-  { icon: Stamp, title: 'Watermark', description: 'Add text or image watermarks with full position and opacity control.' },
+  { icon: Palette, title: 'Colour Adjustments', description: 'Brightness, contrast, saturation, and more — all in real time.' },
+  { icon: Stamp, title: 'Watermark', description: 'Text watermarks with full position, tiling, and opacity control.' },
   { icon: Layers, title: 'Batch Processing', description: 'Apply edits to dozens of images at once and export as a ZIP.' },
-  { icon: FileOutput, title: 'Format Conversion', description: 'Convert between JPEG, PNG, WebP, AVIF, and other formats instantly.' },
-  { icon: FileSearch, title: 'EXIF Metadata', description: 'View, preserve, or strip metadata from your photos.' },
+  { icon: FileOutput, title: 'Format Conversion', description: 'Convert between JPEG, PNG, WebP, and AVIF where supported.' },
+  { icon: FileSearch, title: 'EXIF Metadata', description: 'Inspect camera data — and strip it automatically on export.' },
 ] as const;
 
 const TRUST_POINTS = [
@@ -28,83 +20,64 @@ const TRUST_POINTS = [
 ] as const;
 
 export function LandingPage() {
-  const uploadRef = useRef<HTMLDivElement>(null);
-
-  const scrollToUpload = () => {
-    uploadRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <main className="flex-1 overflow-y-auto">
-      {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-6 py-24 sm:py-32">
-        <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-          ZeroShutter
-        </h1>
-        <p className="mt-4 max-w-xl text-lg sm:text-xl text-zinc-400">
-          Crop, resize, convert, watermark, and batch-edit images — entirely in your browser.
-          No uploads. No servers. No sign-up required.
-        </p>
-        <button
-          onClick={scrollToUpload}
-          className="mt-8 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-lg transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-zinc-950"
-        >
-          Start Editing
-        </button>
+      {/* Hero — the drop zone sits here so nobody has to scroll to start. */}
+      <section className="px-6 pt-14 pb-10 sm:pt-20">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
+            Edit images without uploading them
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base text-zinc-400 sm:text-lg">
+            Crop, resize, convert, watermark, and batch-edit — entirely in your browser.
+            No servers, no sign-up, nothing leaves your device.
+          </p>
+        </div>
+        <div className="mt-10">
+          <DropZone />
+        </div>
       </section>
 
       {/* Features */}
-      <section className="px-6 py-16 max-w-5xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center text-zinc-100 mb-12">
+      <section className="mx-auto max-w-5xl px-6 py-14">
+        <h2 className="mb-10 text-center text-2xl font-bold text-zinc-100 sm:text-3xl">
           Everything you need, right in the browser
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 flex flex-col gap-3"
-            >
-              <div className="w-10 h-10 rounded-lg bg-violet-500/15 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-violet-400" />
+            <div key={title} className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/15">
+                <Icon className="h-5 w-5 text-violet-400" />
               </div>
-              <h3 className="text-lg font-semibold text-zinc-100">{title}</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">{description}</p>
+              <h3 className="text-base font-semibold text-zinc-100">{title}</h3>
+              <p className="text-sm leading-relaxed text-zinc-400">{description}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Privacy */}
-      <section className="px-6 py-16 max-w-4xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center text-zinc-100 mb-12">
+      <section className="mx-auto max-w-4xl px-6 py-14">
+        <h2 className="mb-10 text-center text-2xl font-bold text-zinc-100 sm:text-3xl">
           Your privacy, guaranteed
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {TRUST_POINTS.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 text-center flex flex-col items-center gap-3"
+              className="flex flex-col items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 text-center"
             >
-              <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                <Icon className="w-6 h-6 text-emerald-400" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
+                <Icon className="h-6 w-6 text-emerald-400" />
               </div>
-              <h3 className="text-lg font-semibold text-zinc-100">{title}</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">{description}</p>
+              <h3 className="text-base font-semibold text-zinc-100">{title}</h3>
+              <p className="text-sm leading-relaxed text-zinc-400">{description}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Upload */}
-      <section ref={uploadRef} id="upload" className="px-6 py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center text-zinc-100 mb-8">
-          Ready? Drop your images below.
-        </h2>
-        <DropZone />
-      </section>
-
-      {/* Footer */}
-      <footer className="text-center text-zinc-600 text-sm py-8 border-t border-zinc-800/50">
+      <footer className="border-t border-zinc-800/50 py-8 text-center text-sm text-zinc-600">
         ZeroShutter — 100% client-side image editing. No data ever leaves your browser.
       </footer>
     </main>

@@ -35,6 +35,7 @@ export interface ColorAdjustments {
   saturation: number;   // -100 to 100
   hue: number;          // 0 to 360
   sharpness: number;    // 0 to 100
+  invert: boolean;
   preset: ColorPreset | null;
 }
 
@@ -149,4 +150,12 @@ export interface ExifData {
   ImageWidth?: number;
   ImageHeight?: number;
   ColorSpace?: number;
+}
+
+export type NotificationKind = 'success' | 'error' | 'info';
+
+export interface Notification {
+  id: string;
+  kind: NotificationKind;
+  message: string;
 }

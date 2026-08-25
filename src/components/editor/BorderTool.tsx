@@ -36,7 +36,10 @@ export function BorderTool() {
           {(['solid', 'blur'] as const).map((m) => (
             <button
               key={m}
-              onClick={() => updateBorder({ mode: m })}
+              onClick={() => {
+                updateBorder({ mode: m });
+                pushHistory(`Border: ${m}`);
+              }}
               className={`px-3 py-2 rounded-md text-xs font-medium capitalize transition-colors ${
                 border.mode === m
                   ? 'bg-violet-600 text-white'
@@ -103,6 +106,7 @@ export function BorderTool() {
           <input
             type="range" min={0} max={500} value={border.top}
             onChange={(e) => handleUniform(parseInt(e.target.value))}
+            onPointerUp={() => pushHistory('Adjust border')}
             className="w-full accent-violet-500"
           />
         </div>
@@ -117,6 +121,7 @@ export function BorderTool() {
               <input
                 type="range" min={0} max={500} value={border[side]}
                 onChange={(e) => updateBorder({ [side]: parseInt(e.target.value) })}
+                onPointerUp={() => pushHistory('Adjust border')}
                 className="w-full accent-violet-500"
               />
             </div>
@@ -135,7 +140,10 @@ export function BorderTool() {
           ].map((p) => (
             <button
               key={p.label}
-              onClick={() => handleUniform(p.val)}
+              onClick={() => {
+                handleUniform(p.val);
+                pushHistory(`Border: ${p.label.toLowerCase()}`);
+              }}
               className="px-2 py-1.5 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-md text-xs font-medium transition-colors"
             >
               {p.label}

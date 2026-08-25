@@ -1,90 +1,114 @@
-import { useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { useImageStore } from '@/stores/useImageStore';
+import { useViewStore } from '@/stores/useViewStore';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useClipboardPaste } from '@/hooks/useClipboardPaste';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { filterImageFiles, describeRejected, openFilePicker } from '@/lib/files';
 import { Header } from '@/components/layout/Header';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { EditorCanvas } from '@/components/editor/EditorCanvas';
 import { SettingsPanel } from '@/components/editor/SettingsPanel';
 import { BatchPanel } from '@/components/batch/BatchPanel';
+import { Toasts } from '@/components/shared/Toasts';
+import { KeyboardHelp } from '@/components/shared/KeyboardHelp';
+import { DropOverlay } from '@/components/upload/DropOverlay';
 
 export function App() {
-  const { images, mode, undo, redo, setActiveTool, activeTool } = useImageStore();
-  const { setRotation, setFlipH, setFlipV, editState } = useImageStore();
+  const images = useImageStore((s) => s.images);
+  const mode = useImageStore((s) => s.mode);
+  const activeTool = useImageStore((s) => s.activeTool);
+  const setActiveTool = useImageStore((s) => s.setActiveTool);
+  const addImages = useImageStore((s) => s.addImages);
+  const notify = useImageStore((s) => s.notify);
+
+  const showShortcuts = useViewStore((s) => s.showShortcuts);
+  const setShowShortcuts = useViewStore((s) => s.setShowShortcuts);
+  const { zoomIn, zoomOut, fitToScreen, actualSize, toggleShortcuts } = useViewStore();
+
+  const [showPanelOnMobile, setShowPanelOnMobile] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const hasImages = images.length > 0;
 
-  // Global keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Skip if user is typing in an input
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  useClipboardPaste();
 
-      const isCtrl = e.ctrlKey || e.metaKey;
+  const handleOpenFiles = useCallback(async () => {
+    const picked = await openFilePicker();
+    if (picked.length === 0) return;
+    const { accepted, rejected } = filterImageFiles(picked);
+    if (rejected.length > 0) notify('error', describeRejected(rejected));
+    if (accepted.length > 0) await addImages(accepted);
+  }, [addImages, notify]);
 
-      // Undo: Ctrl+Z
-      if (isCtrl && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-        return;
-      }
-      // Redo: Ctrl+Shift+Z or Ctrl+Y
-      if ((isCtrl && e.key === 'z' && e.shiftKey) || (isCtrl && e.key === 'y')) {
-        e.preventDefault();
-        redo();
-        return;
-      }
-      // Export: Ctrl+S
-      if (isCtrl && e.key === 's') {
-        e.preventDefault();
-        setActiveTool('export');
-        return;
-      }
+  const handleEscape = useCallback(() => {
+    if (useViewStore.getState().showShortcuts) {
+      setShowShortcuts(false);
+      return;
+    }
+    setActiveTool(null);
+    setShowPanelOnMobile(false);
+  }, [setActiveTool, setShowShortcuts]);
 
-      if (isCtrl) return; // Don't hijack other Ctrl combos
+  useKeyboardShortcuts({
+    onOpenFiles: handleOpenFiles,
+    onToggleHelp: toggleShortcuts,
+    onZoomIn: zoomIn,
+    onZoomOut: zoomOut,
+    onZoomFit: fitToScreen,
+    onZoomActual: actualSize,
+    onEscape: handleEscape,
+  });
 
-      // Tool shortcuts (single key, no modifier)
-      switch (e.key.toLowerCase()) {
-        case 'c': setActiveTool(activeTool === 'crop' ? null : 'crop'); break;
-        case 'v': setActiveTool(activeTool === 'resize' ? null : 'resize'); break;
-        case 'r': setActiveTool(activeTool === 'rotate' ? null : 'rotate'); break;
-        case 'e': setActiveTool(activeTool === 'export' ? null : 'export'); break;
-        case 'escape': setActiveTool(null); break;
-        // Quick rotate/flip
-        case '[': {
-          e.preventDefault();
-          const angle = (editState.rotate.angle - 90 + 360) % 360;
-          setRotation(angle);
-          break;
-        }
-        case ']': {
-          e.preventDefault();
-          const angle = (editState.rotate.angle + 90) % 360;
-          setRotation(angle);
-          break;
-        }
-        case 'h': setFlipH(!editState.rotate.flipH); break;
-        case 'f': setFlipV(!editState.rotate.flipV); break;
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo, setActiveTool, activeTool, setRotation, setFlipH, setFlipV, editState.rotate]);
+  const openTool = useCallback(
+    (tool: typeof activeTool) => {
+      setActiveTool(tool);
+      setShowPanelOnMobile(tool !== null);
+    },
+    [setActiveTool]
+  );
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-zinc-100">
-      <Header />
+    <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-100">
+      <Header onOpenFiles={handleOpenFiles} />
 
       {!hasImages ? (
         <LandingPage />
       ) : (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           {mode === 'batch' && images.length > 1 && <BatchPanel />}
-          <Toolbar />
+
+          {/* Tool rail: a left column on desktop, a scrollable bar on small screens */}
+          <Toolbar onSelect={openTool} />
+
           <EditorCanvas />
-          <SettingsPanel />
+
+          {/* Settings: docked column on desktop, slide-up sheet on small screens.
+              Only ever one instance, so panel side effects don't run twice. */}
+          {isDesktop ? (
+            <SettingsPanel />
+          ) : (
+            activeTool &&
+            showPanelOnMobile && (
+              <div
+                className="fixed inset-0 z-40 flex flex-col justify-end bg-black/60"
+                onClick={() => setShowPanelOnMobile(false)}
+              >
+                <div
+                  className="flex max-h-[70vh] flex-col overflow-hidden rounded-t-2xl border-t border-zinc-800"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SettingsPanel onClose={() => setShowPanelOnMobile(false)} />
+                </div>
+              </div>
+            )
+          )}
         </div>
       )}
+
+      {hasImages && <DropOverlay />}
+      <Toasts />
+      {showShortcuts && <KeyboardHelp onClose={() => setShowShortcuts(false)} />}
     </div>
   );
 }

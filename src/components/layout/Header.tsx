@@ -1,87 +1,91 @@
-import { ImageIcon, Layers, Trash2, Plus } from 'lucide-react';
-import { useRef } from 'react';
+import { ImageIcon, Layers, Trash2, Plus, Keyboard } from 'lucide-react';
 import { useImageStore } from '@/stores/useImageStore';
-import { ACCEPTED_EXTENSIONS, ACCEPTED_IMAGE_TYPES } from '@/lib/constants';
+import { useViewStore } from '@/stores/useViewStore';
 
-export function Header() {
-  const { images, mode, setMode, clearImages, addImages } = useImageStore();
+interface HeaderProps {
+  onOpenFiles: () => void;
+}
+
+export function Header({ onOpenFiles }: HeaderProps) {
+  const images = useImageStore((s) => s.images);
+  const mode = useImageStore((s) => s.mode);
+  const setMode = useImageStore((s) => s.setMode);
+  const clearImages = useImageStore((s) => s.clearImages);
+  const toggleShortcuts = useViewStore((s) => s.toggleShortcuts);
+
   const hasImages = images.length > 0;
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-    const valid = Array.from(files).filter((f) => ACCEPTED_IMAGE_TYPES.includes(f.type));
-    if (valid.length > 0) addImages(valid);
+  const handleClear = () => {
+    // Losing several images plus their edits to a stray click is a bad trade.
+    if (images.length > 1 && !window.confirm(`Remove all ${images.length} images and discard every edit?`)) return;
+    clearImages();
   };
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-            <ImageIcon className="w-4 h-4 text-white" />
-          </div>
-          <h1 className="text-lg font-semibold text-white tracking-tight">ZeroShutter</h1>
+    <header className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950 px-3 py-2.5 sm:px-4">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500">
+          <ImageIcon className="h-4 w-4 text-white" />
         </div>
+        <h1 className="text-base font-semibold tracking-tight text-white sm:text-lg">ZeroShutter</h1>
       </div>
 
-      <div className="flex items-center gap-2">
-        {hasImages && images.length > 1 && (
-          <div className="flex bg-zinc-800 rounded-lg p-0.5">
+      <div className="flex items-center gap-1 sm:gap-2">
+        {images.length > 1 && (
+          <div className="flex rounded-lg bg-zinc-800 p-0.5" role="group" aria-label="Editing mode">
             <button
               onClick={() => setMode('single')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                mode === 'single'
-                  ? 'bg-zinc-700 text-white'
-                  : 'text-zinc-400 hover:text-zinc-300'
+              aria-pressed={mode === 'single'}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 sm:px-3 ${
+                mode === 'single' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Single
+              <ImageIcon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Single</span>
             </button>
             <button
               onClick={() => setMode('batch')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                mode === 'batch'
-                  ? 'bg-zinc-700 text-white'
-                  : 'text-zinc-400 hover:text-zinc-300'
+              aria-pressed={mode === 'batch'}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 sm:px-3 ${
+                mode === 'batch' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
-              Batch
-              <span className="text-xs bg-zinc-600 px-1.5 rounded-full">{images.length}</span>
+              <Layers className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Batch</span>
+              <span className="rounded-full bg-zinc-600 px-1.5 text-xs tabular-nums">{images.length}</span>
             </button>
           </div>
         )}
 
         {hasImages && (
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-zinc-400 hover:text-violet-400 hover:bg-zinc-800 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add
-          </button>
+          <>
+            <button
+              onClick={onOpenFiles}
+              title="Add images (Ctrl+O)"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 sm:px-3"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Add</span>
+            </button>
+            <button
+              onClick={handleClear}
+              title="Remove every image"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:px-3"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          </>
         )}
 
-        {hasImages && (
-          <button
-            onClick={clearImages}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Clear
-          </button>
-        )}
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED_EXTENSIONS}
-          multiple
-          onChange={(e) => handleFiles(e.target.files)}
-          className="hidden"
-        />
+        <button
+          onClick={toggleShortcuts}
+          title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
+          className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+        >
+          <Keyboard className="h-4 w-4" />
+        </button>
       </div>
     </header>
   );

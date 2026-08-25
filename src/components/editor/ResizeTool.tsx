@@ -2,165 +2,160 @@ import { useState, useEffect } from 'react';
 import { Link, Unlink } from 'lucide-react';
 import { useImageStore } from '@/stores/useImageStore';
 
+const SCALE_STEPS = [25, 50, 75, 100, 150, 200];
+
 export function ResizeTool() {
-  const activeImage = useImageStore((s) => {
-    const { images, activeImageId } = s;
-    return images.find((i) => i.id === activeImageId);
-  });
-  const { editState, setResize } = useImageStore();
-  const pushHistory = useImageStore((s) => s.pushHistory);
+  const activeImage = useImageStore((s) => s.images.find((i) => i.id === s.activeImageId));
+  const editState = useImageStore((s) => s.editState);
+  const { setResize, clearResize, pushHistory } = useImageStore();
 
-  const origW = activeImage?.width ?? 0;
-  const origH = activeImage?.height ?? 0;
-  const aspectRatio = origW / (origH || 1);
+  // Resizing happens after the crop, so the baseline is the cropped size.
+  const baseWidth = editState.crop?.width ?? activeImage?.width ?? 0;
+  const baseHeight = editState.crop?.height ?? activeImage?.height ?? 0;
+  const aspectRatio = baseWidth / (baseHeight || 1);
 
-  const activeId = activeImage?.id ?? '';
-  const [width, setWidth] = useState(editState.resize?.width ?? origW);
-  const [height, setHeight] = useState(editState.resize?.height ?? origH);
+  const [width, setWidth] = useState(baseWidth);
+  const [height, setHeight] = useState(baseHeight);
   const [locked, setLocked] = useState(true);
-  const [percentage, setPercentage] = useState(100);
 
+  // Re-seed the inputs when the underlying source dimensions change.
+  const baselineKey = `${activeImage?.id ?? ''}:${baseWidth}x${baseHeight}`;
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWidth(origW);
-    setHeight(origH);
-    setPercentage(100);
-  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
+    const resize = useImageStore.getState().editState.resize;
+    setWidth(resize?.width ?? baseWidth);
+    setHeight(resize?.height ?? baseHeight);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baselineKey]);
 
   if (!activeImage) return null;
 
-  const handleWidthChange = (val: number) => {
-    setWidth(val);
-    if (locked) {
-      setHeight(Math.round(val / aspectRatio));
-    }
+  const handleWidthChange = (value: number) => {
+    setWidth(value);
+    if (locked && value > 0) setHeight(Math.max(1, Math.round(value / aspectRatio)));
   };
 
-  const handleHeightChange = (val: number) => {
-    setHeight(val);
-    if (locked) {
-      setWidth(Math.round(val * aspectRatio));
-    }
+  const handleHeightChange = (value: number) => {
+    setHeight(value);
+    if (locked && value > 0) setWidth(Math.max(1, Math.round(value * aspectRatio)));
   };
 
-  const handlePercentage = (pct: number) => {
-    setPercentage(pct);
-    setWidth(Math.round(origW * (pct / 100)));
-    setHeight(Math.round(origH * (pct / 100)));
+  const applyScale = (percent: number) => {
+    const w = Math.max(1, Math.round(baseWidth * (percent / 100)));
+    const h = Math.max(1, Math.round(baseHeight * (percent / 100)));
+    setWidth(w);
+    setHeight(h);
+    setResize(w, h, locked);
+    pushHistory(`Resize ${w}×${h}`);
   };
 
   const applyResize = () => {
-    if (width > 0 && height > 0) {
-      setResize(width, height, locked);
-      pushHistory(`Resize ${width}×${height}`);
-    }
+    if (width < 1 || height < 1) return;
+    setResize(width, height, locked);
+    pushHistory(`Resize ${width}×${height}`);
   };
 
-  const isChanged = width !== origW || height !== origH;
+  const isValid = width >= 1 && height >= 1;
+  const isChanged = width !== baseWidth || height !== baseHeight;
+  const applied = editState.resize;
+  const isApplied = applied?.width === width && applied?.height === height;
+  const currentPercent = baseWidth > 0 ? Math.round((width / baseWidth) * 100) : 100;
 
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-          Dimensions (px)
-        </h3>
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <label className="text-[10px] text-zinc-500 mb-0.5 block">Width</label>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Dimensions (px)</h3>
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <label htmlFor="resize-width" className="mb-0.5 block text-[10px] text-zinc-500">Width</label>
             <input
+              id="resize-width"
               type="number"
               value={width}
               onChange={(e) => handleWidthChange(parseInt(e.target.value) || 0)}
               min={1}
-              className="w-full px-3 py-2 bg-zinc-800 rounded-lg text-sm text-zinc-200 border border-zinc-700 focus:outline-none focus:border-violet-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
             />
           </div>
           <button
             onClick={() => setLocked(!locked)}
-            className={`mt-4 p-2 rounded-lg transition-colors ${
-              locked ? 'text-violet-400 bg-violet-500/10' : 'text-zinc-500 hover:text-zinc-400'
+            aria-pressed={locked}
+            className={`mb-1 rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+              locked ? 'bg-violet-500/10 text-violet-400' : 'text-zinc-500 hover:text-zinc-300'
             }`}
-            title={locked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+            title={locked ? 'Aspect ratio locked' : 'Aspect ratio unlocked'}
           >
-            {locked ? <Link className="w-4 h-4" /> : <Unlink className="w-4 h-4" />}
+            {locked ? <Link className="h-4 w-4" /> : <Unlink className="h-4 w-4" />}
           </button>
-          <div className="flex-1">
-            <label className="text-[10px] text-zinc-500 mb-0.5 block">Height</label>
+          <div className="min-w-0 flex-1">
+            <label htmlFor="resize-height" className="mb-0.5 block text-[10px] text-zinc-500">Height</label>
             <input
+              id="resize-height"
               type="number"
               value={height}
               onChange={(e) => handleHeightChange(parseInt(e.target.value) || 0)}
               min={1}
-              className="w-full px-3 py-2 bg-zinc-800 rounded-lg text-sm text-zinc-200 border border-zinc-700 focus:outline-none focus:border-violet-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
             />
           </div>
         </div>
+        {!isValid && <p className="mt-1.5 text-[10px] text-red-400">Width and height must be at least 1 pixel.</p>}
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-          Scale (%)
-        </h3>
-        <div className="flex gap-2">
-          {[25, 50, 75, 100, 150, 200].map((pct) => (
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Scale</h3>
+        <div className="grid grid-cols-3 gap-1.5">
+          {SCALE_STEPS.map((percent) => (
             <button
-              key={pct}
-              onClick={() => handlePercentage(pct)}
-              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                percentage === pct
+              key={percent}
+              onClick={() => applyScale(percent)}
+              className={`rounded-md py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                currentPercent === percent
                   ? 'bg-violet-600 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
               }`}
             >
-              {pct}%
+              {percent}%
             </button>
           ))}
         </div>
-        <input
-          type="range"
-          min={10}
-          max={300}
-          value={percentage}
-          onChange={(e) => handlePercentage(parseInt(e.target.value))}
-          className="w-full mt-2 accent-violet-500"
-        />
-        <div className="flex justify-between text-[10px] text-zinc-500">
-          <span>10%</span>
-          <span className="text-zinc-300">{percentage}%</span>
-          <span>300%</span>
-        </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-zinc-500">
-        <span>Original: {origW} × {origH}</span>
-        {isChanged && (
-          <span className="text-violet-400">→ {width} × {height}</span>
-        )}
+      <div className="space-y-1 rounded-lg bg-zinc-800/50 p-3 text-xs">
+        <div className="flex justify-between">
+          <span className="text-zinc-400">{editState.crop ? 'Cropped size' : 'Original size'}</span>
+          <span className="tabular-nums text-zinc-200">{baseWidth} × {baseHeight}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-zinc-400">Output</span>
+          <span className={`tabular-nums ${isChanged ? 'text-violet-400' : 'text-zinc-200'}`}>
+            {width} × {height} ({currentPercent}%)
+          </span>
+        </div>
       </div>
 
       <button
         onClick={applyResize}
-        disabled={!isChanged}
-        className={`w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-          isChanged
-            ? 'bg-violet-600 hover:bg-violet-700 text-white'
-            : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+        disabled={!isValid || isApplied}
+        className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+          isValid && !isApplied
+            ? 'bg-violet-600 text-white hover:bg-violet-700'
+            : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
         }`}
       >
-        Apply Resize
+        {isApplied ? 'Resize applied' : 'Apply resize'}
       </button>
 
-      {editState.resize && (
+      {applied && (
         <button
           onClick={() => {
-            setWidth(origW);
-            setHeight(origH);
-            setPercentage(100);
-            setResize(origW, origH);
+            clearResize();
+            setWidth(baseWidth);
+            setHeight(baseHeight);
+            pushHistory('Clear resize');
           }}
-          className="w-full text-xs text-red-400 hover:text-red-300"
+          className="w-full text-xs text-red-400 transition-colors hover:text-red-300"
         >
-          Reset to original
+          Reset to original size
         </button>
       )}
     </div>

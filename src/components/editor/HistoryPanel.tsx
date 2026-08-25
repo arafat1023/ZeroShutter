@@ -1,84 +1,64 @@
-import { Undo2, Redo2, Clock } from 'lucide-react';
+import { Undo2, Redo2 } from 'lucide-react';
 import { useImageStore } from '@/stores/useImageStore';
 
 export function HistoryPanel() {
-  const { history, historyIndex, undo, redo, canUndo, canRedo } = useImageStore();
+  const { history, historyIndex, undo, redo, canUndo, canRedo, jumpToHistory } = useImageStore();
+
+  const actionButton = (enabled: boolean) =>
+    `flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+      enabled ? 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700' : 'cursor-not-allowed bg-zinc-800/50 text-zinc-600'
+    }`;
 
   return (
     <div className="space-y-3">
-      {/* Undo / Redo buttons */}
       <div className="flex gap-2">
-        <button
-          onClick={undo}
-          disabled={!canUndo()}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-            canUndo()
-              ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700'
-              : 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'
-          }`}
-        >
-          <Undo2 className="w-4 h-4" />
+        <button onClick={undo} disabled={!canUndo()} className={actionButton(canUndo())}>
+          <Undo2 className="h-4 w-4" />
           Undo
         </button>
-        <button
-          onClick={redo}
-          disabled={!canRedo()}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-            canRedo()
-              ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700'
-              : 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'
-          }`}
-        >
-          <Redo2 className="w-4 h-4" />
+        <button onClick={redo} disabled={!canRedo()} className={actionButton(canRedo())}>
+          <Redo2 className="h-4 w-4" />
           Redo
         </button>
       </div>
 
-      {/* History list */}
-      {history.length === 0 ? (
-        <div className="text-center py-6">
-          <Clock className="w-5 h-5 text-zinc-600 mx-auto mb-2" />
-          <p className="text-xs text-zinc-500">No history yet</p>
-          <p className="text-[10px] text-zinc-600 mt-1">Edits will appear here</p>
-        </div>
-      ) : (
-        <div className="space-y-1">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            History ({history.length})
-          </h3>
-          {history.map((entry, idx) => (
-            <div
+      <div className="space-y-1">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          Steps ({history.length})
+        </h3>
+        {history.map((entry, index) => {
+          const isCurrent = index === historyIndex;
+          const isFuture = index > historyIndex;
+          return (
+            <button
               key={entry.id}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
-                idx === historyIndex
-                  ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
-                  : idx > historyIndex
-                  ? 'text-zinc-600'
-                  : 'text-zinc-400 hover:bg-zinc-800/50'
+              onClick={() => jumpToHistory(index)}
+              aria-current={isCurrent}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                isCurrent
+                  ? 'border border-violet-500/30 bg-violet-600/20 text-violet-200'
+                  : isFuture
+                  ? 'text-zinc-600 hover:bg-zinc-800/50 hover:text-zinc-400'
+                  : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
               }`}
             >
-              <div
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                  idx === historyIndex
-                    ? 'bg-violet-400'
-                    : idx > historyIndex
-                    ? 'bg-zinc-700'
-                    : 'bg-zinc-500'
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  isCurrent ? 'bg-violet-400' : isFuture ? 'bg-zinc-700' : 'bg-zinc-500'
                 }`}
               />
               <span className="truncate">{entry.label}</span>
-              <span className="text-[9px] text-zinc-600 ml-auto shrink-0">
+              <span className="ml-auto shrink-0 text-[9px] tabular-nums text-zinc-600">
                 {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Keyboard hints */}
-      <div className="text-[10px] text-zinc-600 space-y-0.5 pt-2 border-t border-zinc-800">
-        <p>Ctrl+Z to undo, Ctrl+Shift+Z to redo</p>
+            </button>
+          );
+        })}
       </div>
+
+      <p className="border-t border-zinc-800 pt-2 text-[10px] text-zinc-600">
+        Click any step to jump straight to it. History is kept per image and is not saved when you close the tab.
+      </p>
     </div>
   );
 }

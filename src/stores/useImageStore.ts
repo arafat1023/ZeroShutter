@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type {
   ImageFile, EditState, ActiveTool, CropData, OutputFormat,
   ColorAdjustments, ColorPreset, WatermarkData,
-  BorderData, HistoryEntry,
+  BorderData, HistoryEntry, Notification, NotificationKind,
 } from '@/types';
 import { generateId } from '@/lib/format';
 import { DEFAULT_QUALITY, MAX_HISTORY_ENTRIES } from '@/lib/constants';
@@ -10,7 +10,7 @@ import { DEFAULT_QUALITY, MAX_HISTORY_ENTRIES } from '@/lib/constants';
 // ─── Defaults ────────────────────────────────────────────────
 
 function defaultColor(): ColorAdjustments {
-  return { brightness: 0, contrast: 0, saturation: 0, hue: 0, sharpness: 0, preset: null };
+  return { brightness: 0, contrast: 0, saturation: 0, hue: 0, sharpness: 0, invert: false, preset: null };
 }
 
 function createDefaultEditState(): EditState {
@@ -23,6 +23,25 @@ function createDefaultEditState(): EditState {
     border: null,
     exportSettings: { format: 'image/jpeg', quality: DEFAULT_QUALITY },
   };
+}
+
+/** Every image starts with a baseline entry so the very first edit is undoable. */
+function createBaselineHistory(editState: EditState): HistoryEntry[] {
+  return [{ id: generateId(), label: 'Original', editState: structuredClone(editState), timestamp: Date.now() }];
+}
+
+/** Per-image edits, so switching images in batch mode never discards work. */
+interface EditSession {
+  editState: EditState;
+  history: HistoryEntry[];
+  historyIndex: number;
+}
+
+function createSession(exportSettings?: EditState['exportSettings']): EditSession {
+  const editState = createDefaultEditState();
+  // Export format/quality are a global preference, not a per-image edit.
+  if (exportSettings) editState.exportSettings = { ...exportSettings };
+  return { editState, history: createBaselineHistory(editState), historyIndex: 0 };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -48,13 +67,20 @@ interface ImageStore {
   mode: 'single' | 'batch';
   editState: EditState;
   activeTool: ActiveTool;
+  isLoadingImages: boolean;
 
-  // History (undo/redo)
+  /** Saved edits for every image except the active one. */
+  sessions: Record<string, EditSession>;
+
   history: HistoryEntry[];
   historyIndex: number;
 
-  // Compare mode
   showCompare: boolean;
+  notifications: Notification[];
+
+  // Notifications
+  notify: (kind: NotificationKind, message: string) => void;
+  dismissNotification: (id: string) => void;
 
   // Image actions
   addImages: (files: File[]) => Promise<void>;
@@ -64,9 +90,10 @@ interface ImageStore {
   setMode: (mode: 'single' | 'batch') => void;
   setActiveTool: (tool: ActiveTool) => void;
 
-  // Phase 1 edit actions
+  // Geometry
   setCrop: (crop: CropData | null) => void;
   setResize: (width: number, height: number, maintainAspectRatio?: boolean) => void;
+  clearResize: () => void;
   setRotation: (angle: number) => void;
   setFlipH: (flip: boolean) => void;
   setFlipV: (flip: boolean) => void;
@@ -74,242 +101,367 @@ interface ImageStore {
   setQuality: (quality: number) => void;
   resetEdits: () => void;
 
-  // Phase 2: Color
-  setColorAdjustment: (key: keyof Omit<ColorAdjustments, 'preset'>, value: number) => void;
+  // Colour
+  setColorAdjustment: (key: keyof Omit<ColorAdjustments, 'preset' | 'invert'>, value: number) => void;
+  toggleInvert: () => void;
   setColorPreset: (preset: ColorPreset | null) => void;
   resetColor: () => void;
 
-  // Phase 2: Watermark
+  // Watermark
   setWatermark: (wm: WatermarkData | null) => void;
   updateWatermark: (partial: Partial<WatermarkData>) => void;
 
-  // Phase 2: Border
+  // Border
   setBorder: (border: BorderData | null) => void;
   updateBorder: (partial: Partial<BorderData>) => void;
 
-  // Phase 2: Undo/Redo
+  // History
   pushHistory: (label: string) => void;
   undo: () => void;
   redo: () => void;
+  jumpToHistory: (index: number) => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
 
-  // Phase 2: Compare
+  // Compare
   toggleCompare: () => void;
 
   // Computed
   activeImage: () => ImageFile | undefined;
+  hasEdits: () => boolean;
 }
+
+const PRESET_VALUES: Record<ColorPreset, Partial<ColorAdjustments>> = {
+  grayscale: { saturation: -100 },
+  sepia: { brightness: 4, contrast: 8, saturation: -70, hue: 22 },
+  invert: { invert: true },
+  warm: { brightness: 4, contrast: 6, saturation: 18, hue: 8 },
+  cool: { contrast: 6, saturation: 12, hue: -12 },
+  highContrast: { contrast: 45, saturation: 15, sharpness: 20 },
+  vintage: { brightness: -4, contrast: -12, saturation: -35, hue: 14 },
+};
 
 // ─── Store ───────────────────────────────────────────────────
 
-export const useImageStore = create<ImageStore>((set, get) => ({
-  images: [],
-  activeImageId: null,
-  mode: 'single',
-  editState: createDefaultEditState(),
-  activeTool: null,
-  history: [],
-  historyIndex: -1,
-  showCompare: false,
+export const useImageStore = create<ImageStore>((set, get) => {
+  /** Applies a change to editState and keeps it out of history until pushHistory. */
+  const patchEdit = (updater: (state: EditState) => EditState) =>
+    set((s) => ({ editState: updater(s.editState) }));
 
-  // ── Image Management ─────────────────────────
+  return {
+    images: [],
+    activeImageId: null,
+    mode: 'single',
+    editState: createDefaultEditState(),
+    activeTool: null,
+    isLoadingImages: false,
+    sessions: {},
+    history: [],
+    historyIndex: -1,
+    showCompare: false,
+    notifications: [],
 
-  addImages: async (files: File[]) => {
-    const newImages: ImageFile[] = [];
-    for (const file of files) {
-      try {
-        const { url, width, height } = await loadImageDimensions(file);
-        newImages.push({
-          id: generateId(), file, originalUrl: url, previewUrl: url,
-          width, height, name: file.name, size: file.size,
-        });
-      } catch (e) { console.error(e); }
-    }
-    set((state) => {
-      const allImages = [...state.images, ...newImages];
-      return {
-        images: allImages,
-        activeImageId: state.activeImageId ?? newImages[0]?.id ?? null,
-        mode: allImages.length > 1 ? 'batch' : state.mode,
+    // ── Notifications ────────────────────────────
+
+    notify: (kind, message) =>
+      set((s) => {
+        // Collapse duplicates so a batch of identical failures reads as one line.
+        if (s.notifications.some((n) => n.message === message && n.kind === kind)) return s;
+        return { notifications: [...s.notifications, { id: generateId(), kind, message }].slice(-4) };
+      }),
+
+    dismissNotification: (id) =>
+      set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
+
+    // ── Image Management ─────────────────────────
+
+    addImages: async (files: File[]) => {
+      if (files.length === 0) return;
+      set({ isLoadingImages: true });
+
+      const newImages: ImageFile[] = [];
+      const failed: string[] = [];
+
+      for (const file of files) {
+        try {
+          const { url, width, height } = await loadImageDimensions(file);
+          newImages.push({
+            id: generateId(), file, originalUrl: url, previewUrl: url,
+            width, height, name: file.name, size: file.size,
+          });
+        } catch {
+          failed.push(file.name);
+        }
+      }
+
+      set((state) => {
+        const allImages = [...state.images, ...newImages];
+        const sessions = { ...state.sessions };
+        const isFirst = state.activeImageId === null;
+        const nextActiveId = state.activeImageId ?? newImages[0]?.id ?? null;
+
+        // Seed a session for every new image, carrying over the export settings.
+        for (const img of newImages) {
+          if (img.id !== nextActiveId) sessions[img.id] = createSession(state.editState.exportSettings);
+        }
+
+        const activeSession = isFirst && nextActiveId
+          ? createSession(state.editState.exportSettings)
+          : null;
+
+        return {
+          images: allImages,
+          activeImageId: nextActiveId,
+          sessions,
+          mode: allImages.length > 1 ? 'batch' : state.mode,
+          isLoadingImages: false,
+          ...(activeSession
+            ? {
+                editState: activeSession.editState,
+                history: activeSession.history,
+                historyIndex: activeSession.historyIndex,
+              }
+            : {}),
+        };
+      });
+
+      if (failed.length > 0) {
+        get().notify(
+          'error',
+          failed.length === 1
+            ? `Could not read "${failed[0]}" — the file may be corrupt or unsupported.`
+            : `Could not read ${failed.length} files — they may be corrupt or unsupported.`
+        );
+      }
+      if (newImages.length > 0) {
+        get().notify(
+          'success',
+          newImages.length === 1 ? `Added ${newImages[0].name}` : `Added ${newImages.length} images`
+        );
+      }
+    },
+
+    removeImage: (id: string) => {
+      set((state) => {
+        const img = state.images.find((i) => i.id === id);
+        if (img) URL.revokeObjectURL(img.originalUrl);
+
+        const remaining = state.images.filter((i) => i.id !== id);
+        const sessions = { ...state.sessions };
+        delete sessions[id];
+
+        if (state.activeImageId !== id) {
+          return { images: remaining, sessions, mode: remaining.length <= 1 ? 'single' : state.mode };
+        }
+
+        // The active image went away — promote the next one and load its session.
+        const nextId = remaining[0]?.id ?? null;
+        const next = nextId
+          ? sessions[nextId] ?? createSession(state.editState.exportSettings)
+          : createSession(state.editState.exportSettings);
+        if (nextId) delete sessions[nextId];
+
+        return {
+          images: remaining,
+          sessions,
+          activeImageId: nextId,
+          editState: next.editState,
+          history: next.history,
+          historyIndex: next.historyIndex,
+          showCompare: false,
+          mode: remaining.length <= 1 ? 'single' : state.mode,
+        };
+      });
+    },
+
+    clearImages: () => {
+      get().images.forEach((img) => URL.revokeObjectURL(img.originalUrl));
+      const fresh = createSession(get().editState.exportSettings);
+      set({
+        images: [], activeImageId: null, sessions: {},
+        editState: fresh.editState, history: [], historyIndex: -1,
+        activeTool: null, mode: 'single', showCompare: false,
+      });
+    },
+
+    setActiveImage: (id) =>
+      set((state) => {
+        if (id === state.activeImageId) return state;
+
+        const sessions = { ...state.sessions };
+        // Park the current image's work before switching away from it.
+        if (state.activeImageId) {
+          sessions[state.activeImageId] = {
+            editState: state.editState,
+            history: state.history,
+            historyIndex: state.historyIndex,
+          };
+        }
+
+        const next = (id && sessions[id]) || createSession(state.editState.exportSettings);
+        if (id) delete sessions[id];
+
+        return {
+          activeImageId: id,
+          sessions,
+          editState: next.editState,
+          history: next.history,
+          historyIndex: next.historyIndex,
+          showCompare: false,
+        };
+      }),
+
+    setMode: (mode) => set({ mode }),
+    setActiveTool: (tool) => set({ activeTool: tool }),
+
+    // ── Geometry ─────────────────────────────────
+
+    setCrop: (crop) => patchEdit((s) => ({ ...s, crop })),
+
+    setResize: (width, height, maintainAspectRatio = true) =>
+      patchEdit((s) => ({
+        ...s,
+        resize: { width, height, maintainAspectRatio, mode: 'pixels' },
+      })),
+
+    clearResize: () => patchEdit((s) => ({ ...s, resize: null })),
+
+    setRotation: (angle) => patchEdit((s) => ({ ...s, rotate: { ...s.rotate, angle } })),
+    setFlipH: (flipH) => patchEdit((s) => ({ ...s, rotate: { ...s.rotate, flipH } })),
+    setFlipV: (flipV) => patchEdit((s) => ({ ...s, rotate: { ...s.rotate, flipV } })),
+
+    // Export settings are shared across images, so mirror them into every session.
+    setFormat: (format) =>
+      set((s) => ({
+        editState: { ...s.editState, exportSettings: { ...s.editState.exportSettings, format } },
+        sessions: mapSessions(s.sessions, (e) => ({ ...e, exportSettings: { ...e.exportSettings, format } })),
+      })),
+
+    setQuality: (quality) =>
+      set((s) => ({
+        editState: { ...s.editState, exportSettings: { ...s.editState.exportSettings, quality } },
+        sessions: mapSessions(s.sessions, (e) => ({ ...e, exportSettings: { ...e.exportSettings, quality } })),
+      })),
+
+    // Reverts every edit but stays on the history timeline, so a mis-click on
+    // "reset" is itself undoable.
+    resetEdits: () => {
+      const exportSettings = get().editState.exportSettings;
+      const cleared = createDefaultEditState();
+      cleared.exportSettings = { ...exportSettings };
+      set({ editState: cleared });
+      get().pushHistory('Reset all edits');
+    },
+
+    // ── Colour ───────────────────────────────────
+
+    setColorAdjustment: (key, value) =>
+      patchEdit((s) => ({
+        ...s,
+        colorAdjustments: { ...s.colorAdjustments, [key]: value, preset: null },
+      })),
+
+    toggleInvert: () =>
+      patchEdit((s) => ({
+        ...s,
+        colorAdjustments: { ...s.colorAdjustments, invert: !s.colorAdjustments.invert, preset: null },
+      })),
+
+    setColorPreset: (preset) =>
+      patchEdit((s) => ({
+        ...s,
+        colorAdjustments: preset
+          ? { ...defaultColor(), ...PRESET_VALUES[preset], preset }
+          : defaultColor(),
+      })),
+
+    resetColor: () => patchEdit((s) => ({ ...s, colorAdjustments: defaultColor() })),
+
+    // ── Watermark ────────────────────────────────
+
+    setWatermark: (wm) => patchEdit((s) => ({ ...s, watermark: wm })),
+
+    updateWatermark: (partial) =>
+      patchEdit((s) => ({
+        ...s,
+        watermark: s.watermark ? { ...s.watermark, ...partial } : null,
+      })),
+
+    // ── Border ───────────────────────────────────
+
+    setBorder: (border) => patchEdit((s) => ({ ...s, border })),
+
+    updateBorder: (partial) =>
+      patchEdit((s) => ({
+        ...s,
+        border: s.border ? { ...s.border, ...partial } : null,
+      })),
+
+    // ── History ──────────────────────────────────
+
+    pushHistory: (label) => {
+      const { editState, history, historyIndex } = get();
+      const current = history[historyIndex];
+      // Skip no-op pushes (e.g. a slider dragged back to where it started).
+      if (current && JSON.stringify(current.editState) === JSON.stringify(editState)) return;
+
+      const truncated = history.slice(0, historyIndex + 1);
+      const entry: HistoryEntry = {
+        id: generateId(),
+        label,
+        editState: structuredClone(editState),
+        timestamp: Date.now(),
       };
-    });
-  },
+      const newHistory = [...truncated, entry].slice(-MAX_HISTORY_ENTRIES);
+      set({ history: newHistory, historyIndex: newHistory.length - 1 });
+    },
 
-  removeImage: (id: string) => {
-    set((state) => {
-      const img = state.images.find((i) => i.id === id);
-      if (img) URL.revokeObjectURL(img.originalUrl);
-      const remaining = state.images.filter((i) => i.id !== id);
-      return {
-        images: remaining,
-        activeImageId: state.activeImageId === id ? (remaining[0]?.id ?? null) : state.activeImageId,
-        mode: remaining.length <= 1 ? 'single' : state.mode,
-      };
-    });
-  },
+    undo: () => get().jumpToHistory(get().historyIndex - 1),
+    redo: () => get().jumpToHistory(get().historyIndex + 1),
 
-  clearImages: () => {
-    get().images.forEach((img) => URL.revokeObjectURL(img.originalUrl));
-    set({
-      images: [], activeImageId: null, editState: createDefaultEditState(),
-      activeTool: null, mode: 'single', history: [], historyIndex: -1, showCompare: false,
-    });
-  },
+    jumpToHistory: (index) => {
+      const { history } = get();
+      const entry = history[index];
+      if (!entry) return;
+      set({ editState: structuredClone(entry.editState), historyIndex: index });
+    },
 
-  setActiveImage: (id) => set({
-    activeImageId: id, editState: createDefaultEditState(),
-    activeTool: null, history: [], historyIndex: -1, showCompare: false,
-  }),
-  setMode: (mode) => set({ mode }),
-  setActiveTool: (tool) => set({ activeTool: tool }),
+    canUndo: () => get().historyIndex > 0,
+    canRedo: () => get().historyIndex < get().history.length - 1,
 
-  // ── Phase 1 Edit Actions ─────────────────────
+    // ── Compare ──────────────────────────────────
 
-  setCrop: (crop) =>
-    set((s) => ({ editState: { ...s.editState, crop } })),
+    toggleCompare: () => set((s) => ({ showCompare: !s.showCompare })),
 
-  setResize: (width, height, maintainAspectRatio = true) =>
-    set((s) => ({
-      editState: { ...s.editState, resize: { width, height, maintainAspectRatio, mode: 'pixels' } },
-    })),
+    // ── Computed ─────────────────────────────────
 
-  setRotation: (angle) =>
-    set((s) => ({
-      editState: { ...s.editState, rotate: { ...s.editState.rotate, angle } },
-    })),
+    activeImage: () => {
+      const { images, activeImageId } = get();
+      return images.find((i) => i.id === activeImageId);
+    },
 
-  setFlipH: (flipH) =>
-    set((s) => ({
-      editState: { ...s.editState, rotate: { ...s.editState.rotate, flipH } },
-    })),
+    hasEdits: () => {
+      const { editState: e } = get();
+      return Boolean(
+        e.crop ||
+        e.resize ||
+        e.rotate.angle !== 0 || e.rotate.flipH || e.rotate.flipV ||
+        e.watermark || e.border ||
+        e.colorAdjustments.brightness !== 0 || e.colorAdjustments.contrast !== 0 ||
+        e.colorAdjustments.saturation !== 0 || e.colorAdjustments.hue !== 0 ||
+        e.colorAdjustments.sharpness !== 0 || e.colorAdjustments.invert
+      );
+    },
+  };
+});
 
-  setFlipV: (flipV) =>
-    set((s) => ({
-      editState: { ...s.editState, rotate: { ...s.editState.rotate, flipV } },
-    })),
-
-  setFormat: (format) =>
-    set((s) => ({
-      editState: { ...s.editState, exportSettings: { ...s.editState.exportSettings, format } },
-    })),
-
-  setQuality: (quality) =>
-    set((s) => ({
-      editState: { ...s.editState, exportSettings: { ...s.editState.exportSettings, quality } },
-    })),
-
-  resetEdits: () => set({ editState: createDefaultEditState(), activeTool: null, history: [], historyIndex: -1 }),
-
-  // ── Phase 2: Color Adjustments ───────────────
-
-  setColorAdjustment: (key, value) =>
-    set((s) => ({
-      editState: {
-        ...s.editState,
-        colorAdjustments: { ...s.editState.colorAdjustments, [key]: value, preset: null },
-      },
-    })),
-
-  setColorPreset: (preset) => {
-    const presetValues: Record<ColorPreset, Partial<ColorAdjustments>> = {
-      grayscale: { brightness: 0, contrast: 0, saturation: -100, hue: 0, sharpness: 0 },
-      sepia: { brightness: 0, contrast: 10, saturation: -60, hue: 30, sharpness: 0 },
-      invert: { brightness: 0, contrast: 0, saturation: 0, hue: 180, sharpness: 0 },
-      warm: { brightness: 5, contrast: 5, saturation: 15, hue: 10, sharpness: 0 },
-      cool: { brightness: 0, contrast: 5, saturation: 10, hue: 200, sharpness: 0 },
-      highContrast: { brightness: 0, contrast: 50, saturation: 20, hue: 0, sharpness: 20 },
-      vintage: { brightness: -5, contrast: -10, saturation: -30, hue: 15, sharpness: 0 },
-    };
-    if (!preset) {
-      set((s) => ({ editState: { ...s.editState, colorAdjustments: defaultColor() } }));
-      return;
-    }
-    const vals = presetValues[preset];
-    set((s) => ({
-      editState: {
-        ...s.editState,
-        colorAdjustments: { ...defaultColor(), ...vals, preset },
-      },
-    }));
-  },
-
-  resetColor: () =>
-    set((s) => ({ editState: { ...s.editState, colorAdjustments: defaultColor() } })),
-
-  // ── Phase 2: Watermark ───────────────────────
-
-  setWatermark: (wm) =>
-    set((s) => ({ editState: { ...s.editState, watermark: wm } })),
-
-  updateWatermark: (partial) =>
-    set((s) => ({
-      editState: {
-        ...s.editState,
-        watermark: s.editState.watermark ? { ...s.editState.watermark, ...partial } : null,
-      },
-    })),
-
-  // ── Phase 2: Border ──────────────────────────
-
-  setBorder: (border) =>
-    set((s) => ({ editState: { ...s.editState, border } })),
-
-  updateBorder: (partial) =>
-    set((s) => ({
-      editState: {
-        ...s.editState,
-        border: s.editState.border ? { ...s.editState.border, ...partial } : null,
-      },
-    })),
-
-  // ── Phase 2: Undo/Redo ───────────────────────
-
-  pushHistory: (label) => {
-    const { editState, history, historyIndex } = get();
-    // Truncate any redo entries beyond current index
-    const truncated = history.slice(0, historyIndex + 1);
-    const entry: HistoryEntry = {
-      id: generateId(),
-      label,
-      editState: structuredClone(editState),
-      timestamp: Date.now(),
-    };
-    const newHistory = [...truncated, entry].slice(-MAX_HISTORY_ENTRIES);
-    set({ history: newHistory, historyIndex: newHistory.length - 1 });
-  },
-
-  undo: () => {
-    const { history, historyIndex } = get();
-    if (historyIndex <= 0) return;
-    const prevIndex = historyIndex - 1;
-    const entry = history[prevIndex];
-    if (entry) {
-      set({ editState: structuredClone(entry.editState), historyIndex: prevIndex });
-    }
-  },
-
-  redo: () => {
-    const { history, historyIndex } = get();
-    if (historyIndex >= history.length - 1) return;
-    const nextIndex = historyIndex + 1;
-    const entry = history[nextIndex];
-    if (entry) {
-      set({ editState: structuredClone(entry.editState), historyIndex: nextIndex });
-    }
-  },
-
-  canUndo: () => get().historyIndex > 0,
-  canRedo: () => get().historyIndex < get().history.length - 1,
-
-  // ── Phase 2: Compare ─────────────────────────
-
-  toggleCompare: () => set((s) => ({ showCompare: !s.showCompare })),
-
-  // ── Computed ─────────────────────────────────
-
-  activeImage: () => {
-    const { images, activeImageId } = get();
-    return images.find((i) => i.id === activeImageId);
-  },
-}));
+function mapSessions(
+  sessions: Record<string, EditSession>,
+  updater: (editState: EditState) => EditState
+): Record<string, EditSession> {
+  const out: Record<string, EditSession> = {};
+  for (const [id, session] of Object.entries(sessions)) {
+    out[id] = { ...session, editState: updater(session.editState) };
+  }
+  return out;
+}

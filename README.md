@@ -13,38 +13,50 @@ Built with React 19, TypeScript, and the Canvas API.
 
 **Adjustments**
 - **Color Controls** — Brightness, contrast, saturation, hue, and sharpness sliders
-- **Presets** — Grayscale, sepia, invert, warm, cool, high contrast, vintage
-- **Watermark** — Text or image overlays with tiling, positioning, opacity, and rotation
+- **Presets** — Grayscale, sepia, warm, cool, high contrast, vintage, plus an invert toggle
+- **Watermark** — Text overlays with tiling, positioning, opacity, and rotation
 - **Borders** — Solid color or blur borders with per-side controls
 
 **Export**
-- **Multiple Formats** — JPEG, PNG, WebP, AVIF
-- **Quality Control** — Adjustable quality with file size estimation before export
-- **Batch Processing** — Apply edits to multiple images and export as ZIP
+- **Multiple Formats** — JPEG, PNG, WebP, and AVIF where the browser can encode it (unsupported formats are disabled rather than silently falling back)
+- **Quality Control** — Adjustable quality, with the size estimate produced by the real export pipeline
+- **Batch Processing** — Apply format, quality, resize, rotate, colour, watermark and border to every image and export as ZIP
 - **Metadata Stripping** — EXIF data automatically removed on export for privacy
 
 **Workflow**
 - **Drag & Drop** — Drop files or entire folders
 - **Clipboard Paste** — Paste images directly with Ctrl+V
-- **Undo/Redo** — 20-step history with named snapshots
-- **Before/After** — Compare slider to see changes side by side
+- **Undo/Redo** — 20-step named history, kept separately per image, with click-to-jump
+- **Before/After** — Compare slider showing the same framing with and without colour edits
 - **EXIF Viewer** — View camera metadata with GPS privacy warnings
 
 ## Keyboard Shortcuts
 
+Press `?` anywhere in the app for this list.
+
 | Key | Action |
 |-----|--------|
-| `C` | Crop tool |
-| `V` | Resize tool |
-| `R` | Rotate tool |
-| `E` | Export panel |
-| `[` / `]` | Rotate -90 / +90 degrees |
-| `H` | Flip horizontal |
-| `F` | Flip vertical |
+| `C` | Crop |
+| `V` | Resize |
+| `R` | Rotate & flip |
+| `A` | Colour adjustments |
+| `W` | Watermark |
+| `B` | Border & padding |
+| `I` | Image info (EXIF) |
+| `Y` | Edit history |
+| `E` | Export |
+| `[` / `]` | Rotate -90° / +90° |
+| `H` / `F` | Flip horizontal / vertical |
+| `X` | Toggle before/after compare |
+| `+` / `-` | Zoom in / out |
+| `0` / `1` | Fit to screen / actual size |
 | `Ctrl+Z` | Undo |
-| `Ctrl+Y` | Redo |
+| `Ctrl+Shift+Z` | Redo |
+| `Ctrl+O` | Open images |
+| `Ctrl+V` | Paste image from clipboard |
 | `Ctrl+S` | Export |
-| `Esc` | Clear active tool |
+| `?` | Show the shortcut sheet |
+| `Esc` | Close panel / overlay |
 
 ## Getting Started
 

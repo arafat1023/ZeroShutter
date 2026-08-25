@@ -21,28 +21,33 @@ interface MetadataEntry {
 }
 
 export function MetadataPanel() {
-  const activeImage = useImageStore((s) => {
-    const { images, activeImageId } = s;
-    return images.find((i) => i.id === activeImageId);
-  });
+  const activeImage = useImageStore((s) => s.images.find((i) => i.id === s.activeImageId));
 
   const [exif, setExif] = useState<ExifData | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasGps, setHasGps] = useState(false);
 
+  // Keyed on the id, not the object: the images array is replaced on every
+  // store update, which would otherwise re-parse EXIF on each keystroke.
+  const activeImageId = activeImage?.id;
+  const file = activeImage?.file;
+
   useEffect(() => {
-    if (!activeImage) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!file) return;
+    let cancelled = false;
     setLoading(true);
     setExif(null);
-    readExif(activeImage.file).then((data) => {
+    readExif(file).then((data) => {
+      if (cancelled) return;
       setExif(data);
-      setHasGps(
-        !!(data?.latitude || data?.longitude || data?.GPSLatitude || data?.GPSLongitude)
-      );
+      setHasGps(!!(data?.latitude || data?.longitude || data?.GPSLatitude || data?.GPSLongitude));
       setLoading(false);
     });
-  }, [activeImage]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeImageId]);
 
   if (!activeImage) return null;
 
