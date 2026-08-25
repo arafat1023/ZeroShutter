@@ -29,14 +29,25 @@ export function ResizeTool() {
 
   if (!activeImage) return null;
 
+  /** Push straight into the store so the output size and estimate stay live. */
+  const commit = (w: number, h: number) => {
+    if (w < 1 || h < 1) return;
+    if (w === baseWidth && h === baseHeight) clearResize();
+    else setResize(w, h, locked);
+  };
+
   const handleWidthChange = (value: number) => {
+    const next = locked && value > 0 ? Math.max(1, Math.round(value / aspectRatio)) : height;
     setWidth(value);
-    if (locked && value > 0) setHeight(Math.max(1, Math.round(value / aspectRatio)));
+    setHeight(next);
+    commit(value, next);
   };
 
   const handleHeightChange = (value: number) => {
+    const next = locked && value > 0 ? Math.max(1, Math.round(value * aspectRatio)) : width;
     setHeight(value);
-    if (locked && value > 0) setWidth(Math.max(1, Math.round(value * aspectRatio)));
+    setWidth(next);
+    commit(next, value);
   };
 
   const applyScale = (percent: number) => {
@@ -44,20 +55,13 @@ export function ResizeTool() {
     const h = Math.max(1, Math.round(baseHeight * (percent / 100)));
     setWidth(w);
     setHeight(h);
-    setResize(w, h, locked);
+    commit(w, h);
     pushHistory(`Resize ${w}×${h}`);
-  };
-
-  const applyResize = () => {
-    if (width < 1 || height < 1) return;
-    setResize(width, height, locked);
-    pushHistory(`Resize ${width}×${height}`);
   };
 
   const isValid = width >= 1 && height >= 1;
   const isChanged = width !== baseWidth || height !== baseHeight;
   const applied = editState.resize;
-  const isApplied = applied?.width === width && applied?.height === height;
   const currentPercent = baseWidth > 0 ? Math.round((width / baseWidth) * 100) : 100;
 
   return (
@@ -66,12 +70,13 @@ export function ResizeTool() {
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Dimensions (px)</h3>
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
-            <label htmlFor="resize-width" className="mb-0.5 block text-[10px] text-zinc-500">Width</label>
+            <label htmlFor="resize-width" className="mb-0.5 block text-[11px] text-zinc-400">Width</label>
             <input
               id="resize-width"
               type="number"
               value={width}
               onChange={(e) => handleWidthChange(parseInt(e.target.value) || 0)}
+              onBlur={() => isValid && pushHistory(`Resize ${width}×${height}`)}
               min={1}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
             />
@@ -80,25 +85,26 @@ export function ResizeTool() {
             onClick={() => setLocked(!locked)}
             aria-pressed={locked}
             className={`mb-1 rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-              locked ? 'bg-violet-500/10 text-violet-400' : 'text-zinc-500 hover:text-zinc-300'
+              locked ? 'bg-violet-500/10 text-violet-400' : 'text-zinc-400 hover:text-zinc-300'
             }`}
             title={locked ? 'Aspect ratio locked' : 'Aspect ratio unlocked'}
           >
             {locked ? <Link className="h-4 w-4" /> : <Unlink className="h-4 w-4" />}
           </button>
           <div className="min-w-0 flex-1">
-            <label htmlFor="resize-height" className="mb-0.5 block text-[10px] text-zinc-500">Height</label>
+            <label htmlFor="resize-height" className="mb-0.5 block text-[11px] text-zinc-400">Height</label>
             <input
               id="resize-height"
               type="number"
               value={height}
               onChange={(e) => handleHeightChange(parseInt(e.target.value) || 0)}
+              onBlur={() => isValid && pushHistory(`Resize ${width}×${height}`)}
               min={1}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
             />
           </div>
         </div>
-        {!isValid && <p className="mt-1.5 text-[10px] text-red-400">Width and height must be at least 1 pixel.</p>}
+        {!isValid && <p className="mt-1.5 text-[11px] text-red-400">Width and height must be at least 1 pixel.</p>}
       </div>
 
       <div>
@@ -132,18 +138,6 @@ export function ResizeTool() {
           </span>
         </div>
       </div>
-
-      <button
-        onClick={applyResize}
-        disabled={!isValid || isApplied}
-        className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-          isValid && !isApplied
-            ? 'bg-violet-600 text-white hover:bg-violet-700'
-            : 'cursor-not-allowed bg-zinc-800 text-zinc-600'
-        }`}
-      >
-        {isApplied ? 'Resize applied' : 'Apply resize'}
-      </button>
 
       {applied && (
         <button

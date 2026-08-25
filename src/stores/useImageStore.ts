@@ -6,6 +6,8 @@ import type {
 } from '@/types';
 import { generateId } from '@/lib/format';
 import { forgetWatermarkArtwork } from '@/lib/imageProcessor';
+import { clearSession, type PersistedSession } from '@/lib/sessionStore';
+import { remapWatermarkUrls, remapHistory } from '@/lib/sessionRestore';
 import { DEFAULT_QUALITY, MAX_HISTORY_ENTRIES } from '@/lib/constants';
 
 // ─── Defaults ────────────────────────────────────────────────
@@ -133,6 +135,9 @@ interface ImageStore {
 
   // Compare
   toggleCompare: () => void;
+
+  // Persistence
+  restoreSession: (session: PersistedSession) => number;
 
   // Computed
   activeImage: () => ImageFile | undefined;
@@ -291,6 +296,7 @@ export const useImageStore = create<ImageStore>((set, get) => {
     },
 
     clearImages: () => {
+      void clearSession();
       get().images.forEach((img) => URL.revokeObjectURL(img.originalUrl));
       get().watermarkAssets.forEach((url) => {
         forgetWatermarkArtwork(url);
@@ -471,6 +477,57 @@ export const useImageStore = create<ImageStore>((set, get) => {
     // ── Compare ──────────────────────────────────
 
     toggleCompare: () => set((s) => ({ showCompare: !s.showCompare })),
+
+    // ── Persistence ──────────────────────────────
+
+    /** Rehydrates a saved session, returning how many images came back. */
+    restoreSession: (session) => {
+      const urlMap = new Map<string, string>();
+      const assetUrls: string[] = [];
+      for (const asset of session.watermarkAssets ?? []) {
+        const url = URL.createObjectURL(asset.blob);
+        urlMap.set(asset.url, url);
+        assetUrls.push(url);
+      }
+
+      const images: ImageFile[] = session.images.map((image) => {
+        const url = URL.createObjectURL(image.file);
+        return {
+          id: image.id,
+          file: image.file,
+          originalUrl: url,
+          previewUrl: url,
+          width: image.width,
+          height: image.height,
+          name: image.name,
+          size: image.size,
+        };
+      });
+
+      const sessions: Record<string, EditSession> = {};
+      for (const [id, saved] of Object.entries(session.sessions ?? {})) {
+        sessions[id] = {
+          editState: remapWatermarkUrls(saved.editState, urlMap),
+          history: remapHistory(saved.history, urlMap),
+          historyIndex: saved.historyIndex,
+        };
+      }
+
+      set({
+        images,
+        sessions,
+        activeImageId: session.activeImageId,
+        mode: session.mode,
+        editState: remapWatermarkUrls(session.editState, urlMap),
+        history: remapHistory(session.history, urlMap),
+        historyIndex: session.historyIndex,
+        watermarkAssets: assetUrls,
+        activeTool: null,
+        showCompare: false,
+      });
+
+      return images.length;
+    },
 
     // ── Computed ─────────────────────────────────
 

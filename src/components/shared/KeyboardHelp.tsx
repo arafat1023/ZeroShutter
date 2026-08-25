@@ -42,7 +42,7 @@ export function KeyboardHelp({ onClose }: KeyboardHelpProps) {
         <div className="grid grid-cols-1 gap-6 p-5 sm:grid-cols-2">
           {SHORTCUT_GROUPS.map((group) => (
             <section key={group.title}>
-              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
                 {group.title}
               </h3>
               <dl className="space-y-1">
@@ -50,7 +50,7 @@ export function KeyboardHelp({ onClose }: KeyboardHelpProps) {
                   <div key={item.keys} className="flex items-center justify-between gap-3 py-0.5">
                     <dt className="text-xs text-zinc-400">{item.label}</dt>
                     <dd className="shrink-0">
-                      <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
+                      <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 font-mono text-[11px] text-zinc-300">
                         {item.keys}
                       </kbd>
                     </dd>

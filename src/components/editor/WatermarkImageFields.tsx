@@ -53,7 +53,7 @@ export function WatermarkImageFields({ watermark }: { watermark: WatermarkData }
               <p className="truncate text-xs text-zinc-200" title={watermark.imageName ?? ''}>
                 {watermark.imageName}
               </p>
-              <p className="text-[10px] tabular-nums text-zinc-500">
+              <p className="text-[11px] tabular-nums text-zinc-400">
                 {watermark.imageWidth} × {watermark.imageHeight}
               </p>
             </div>
@@ -63,7 +63,7 @@ export function WatermarkImageFields({ watermark }: { watermark: WatermarkData }
                 pushHistory('Remove watermark image');
               }}
               aria-label="Remove watermark image"
-              className="shrink-0 rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+              className="shrink-0 rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -78,7 +78,7 @@ export function WatermarkImageFields({ watermark }: { watermark: WatermarkData }
             {isLoading ? 'Reading…' : 'Choose a logo'}
           </button>
         )}
-        <p className="mt-1 text-[10px] text-zinc-600">
+        <p className="mt-1 text-[11px] text-zinc-400">
           PNG with transparency works best. Nothing is uploaded.
         </p>
         <input

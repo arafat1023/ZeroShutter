@@ -7,6 +7,9 @@ const ZOOM_STEP = 1.25;
 interface ViewStore {
   /** Explicit zoom factor, or null while the canvas is auto-fitting. */
   zoom: number | null;
+  /** Locked crop aspect ratio, shared by the crop panel and the canvas overlay. */
+  cropRatio: number | null;
+  cropRatioLabel: string;
   /** Zoom the canvas last reported while fitting, used as the base for +/−. */
   fittedZoom: number;
   showShortcuts: boolean;
@@ -19,10 +22,13 @@ interface ViewStore {
   actualSize: () => void;
   setShowShortcuts: (show: boolean) => void;
   toggleShortcuts: () => void;
+  setCropRatio: (label: string, ratio: number | null) => void;
 }
 
 export const useViewStore = create<ViewStore>((set, get) => ({
   zoom: null,
+  cropRatio: null,
+  cropRatioLabel: 'Free',
   fittedZoom: 1,
   showShortcuts: false,
 
@@ -37,4 +43,5 @@ export const useViewStore = create<ViewStore>((set, get) => ({
 
   setShowShortcuts: (showShortcuts) => set({ showShortcuts }),
   toggleShortcuts: () => set((s) => ({ showShortcuts: !s.showShortcuts })),
+  setCropRatio: (cropRatioLabel, cropRatio) => set({ cropRatioLabel, cropRatio }),
 }));

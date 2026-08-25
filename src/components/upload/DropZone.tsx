@@ -86,10 +86,10 @@ export function DropZone({ compact = false }: DropZoneProps) {
           <p className="text-base font-medium text-zinc-100 sm:text-lg">
             {isLoading ? 'Reading images…' : isDragging ? 'Drop to add them' : 'Drop images, or click to browse'}
           </p>
-          <p className="mt-1 text-sm text-zinc-500">JPEG, PNG, WebP, AVIF, GIF, BMP, TIFF, SVG</p>
-          <p className="mt-2 text-xs text-zinc-600">
+          <p className="mt-1 text-sm text-zinc-400">JPEG, PNG, WebP, AVIF, GIF, BMP, TIFF, SVG</p>
+          <p className="mt-2 text-xs text-zinc-400">
             or paste from the clipboard with{' '}
-            <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 font-mono text-[10px] text-zinc-400">
+            <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 font-mono text-[11px] text-zinc-400">
               Ctrl+V
             </kbd>
           </p>

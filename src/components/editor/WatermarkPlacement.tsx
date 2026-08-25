@@ -44,7 +44,7 @@ export function WatermarkPlacement({ watermark }: { watermark: WatermarkData }) 
           ))}
         </div>
         {watermark.tiling && (
-          <p className="mt-1 text-[10px] text-zinc-600">Position is ignored while tiling.</p>
+          <p className="mt-1 text-[11px] text-zinc-400">Position is ignored while tiling.</p>
         )}
       </div>
 

@@ -110,7 +110,7 @@ export function ColorTool() {
                       pushHistory(`Reset ${slider.label.toLowerCase()}`);
                     }}
                     aria-label={`Reset ${slider.label}`}
-                    className="rounded p-0.5 text-zinc-500 transition-colors hover:text-zinc-200"
+                    className="rounded p-0.5 text-zinc-400 transition-colors hover:text-zinc-200"
                   >
                     <RotateCcw className="h-3 w-3" />
                   </button>
@@ -136,7 +136,7 @@ export function ColorTool() {
             />
           </div>
         ))}
-        <p className="text-[10px] leading-relaxed text-zinc-600">
+        <p className="text-[11px] leading-relaxed text-zinc-400">
           Sharpness runs an unsharp mask; the preview and the exported file use the same kernel.
         </p>
       </div>

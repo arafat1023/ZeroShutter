@@ -22,21 +22,21 @@ export function RotateTool() {
             className="flex flex-col items-center gap-1 p-3 bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
           >
             <RotateCcw className="w-5 h-5" />
-            <span className="text-[10px]">-90°</span>
+            <span className="text-[11px]">-90°</span>
           </button>
           <button
             onClick={() => rotateTo(angle + 90, 'Rotate +90°')}
             className="flex flex-col items-center gap-1 p-3 bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
           >
             <RotateCw className="w-5 h-5" />
-            <span className="text-[10px]">+90°</span>
+            <span className="text-[11px]">+90°</span>
           </button>
           <button
             onClick={() => rotateTo(angle + 180, 'Rotate 180°')}
             className="flex flex-col items-center gap-1 p-3 bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
           >
             <RotateCw className="w-5 h-5" />
-            <span className="text-[10px]">180°</span>
+            <span className="text-[11px]">180°</span>
           </button>
         </div>
       </div>
@@ -55,7 +55,7 @@ export function RotateTool() {
           onKeyUp={() => pushHistory(`Rotate ${angle}°`)}
           className="w-full accent-violet-500"
         />
-        <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+        <div className="flex justify-between text-[11px] text-zinc-400 mt-1">
           <span>0°</span>
           <span className="text-zinc-300 text-xs font-medium">{angle}°</span>
           <span>359°</span>

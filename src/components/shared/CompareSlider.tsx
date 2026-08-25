@@ -92,16 +92,16 @@ export function CompareSlider({ image, editState, scale, sharpenFilterId }: Comp
           aria-valuemin={0}
           aria-valuemax={100}
           onKeyDown={onKeyDown}
-          className="pointer-events-auto absolute top-1/2 left-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[10px] font-bold text-zinc-900 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          className="pointer-events-auto absolute top-1/2 left-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[11px] font-bold text-zinc-900 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
         >
           ‹›
         </div>
       </div>
 
-      <span className="pointer-events-none absolute top-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+      <span className="pointer-events-none absolute top-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">
         Before
       </span>
-      <span className="pointer-events-none absolute top-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+      <span className="pointer-events-none absolute top-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">
         After
       </span>
     </div>

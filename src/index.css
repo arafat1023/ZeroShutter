@@ -36,23 +36,6 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* react-advanced-cropper dark theme */
-.advanced-cropper {
-  background: #09090b !important;
-}
-
-.advanced-cropper-background {
-  background: #09090b !important;
-}
-
-.advanced-cropper__background {
-  background: rgba(0, 0, 0, 0.6) !important;
-}
-
-.advanced-cropper__cropper {
-  max-height: calc(100vh - 200px);
-}
-
 /* Larger, easier-to-grab range thumbs */
 input[type="range"] {
   accent-color: var(--color-violet-500);

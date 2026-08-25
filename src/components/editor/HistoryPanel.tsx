@@ -38,7 +38,7 @@ export function HistoryPanel() {
                 isCurrent
                   ? 'border border-violet-500/30 bg-violet-600/20 text-violet-200'
                   : isFuture
-                  ? 'text-zinc-600 hover:bg-zinc-800/50 hover:text-zinc-400'
+                  ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-400'
                   : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
               }`}
             >
@@ -48,7 +48,7 @@ export function HistoryPanel() {
                 }`}
               />
               <span className="truncate">{entry.label}</span>
-              <span className="ml-auto shrink-0 text-[9px] tabular-nums text-zinc-600">
+              <span className="ml-auto shrink-0 text-[11px] tabular-nums text-zinc-400">
                 {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </button>
@@ -56,7 +56,7 @@ export function HistoryPanel() {
         })}
       </div>
 
-      <p className="border-t border-zinc-800 pt-2 text-[10px] text-zinc-600">
+      <p className="border-t border-zinc-800 pt-2 text-[11px] text-zinc-400">
         Click any step to jump straight to it. History is kept per image and is not saved when you close the tab.
       </p>
     </div>

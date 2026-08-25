@@ -53,7 +53,7 @@ export function MetadataPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8 text-zinc-500">
+      <div className="flex items-center justify-center py-8 text-zinc-400">
         <Loader2 className="w-4 h-4 animate-spin mr-2" />
         Reading metadata...
       </div>
@@ -63,8 +63,8 @@ export function MetadataPanel() {
   if (!exif) {
     return (
       <div className="text-center py-8">
-        <p className="text-xs text-zinc-500">No metadata found in this image.</p>
-        <p className="text-[10px] text-zinc-600 mt-1">
+        <p className="text-xs text-zinc-400">No metadata found in this image.</p>
+        <p className="text-[11px] text-zinc-400 mt-1">
           PNG and WebP files often don't contain EXIF data.
         </p>
       </div>
@@ -122,11 +122,11 @@ export function MetadataPanel() {
           <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-xs text-amber-300 font-medium">GPS Data Detected</p>
-            <p className="text-[10px] text-amber-400/70 mt-0.5">
+            <p className="text-[11px] text-amber-400/70 mt-0.5">
               This image contains location data. Exporting will strip all metadata by default (Canvas re-encoding).
             </p>
             {(exif.latitude && exif.longitude) && (
-              <p className="text-[10px] text-amber-400/50 mt-1 flex items-center gap-1">
+              <p className="text-[11px] text-amber-400/50 mt-1 flex items-center gap-1">
                 <MapPin className="w-3 h-3" />
                 {exif.latitude.toFixed(4)}, {exif.longitude.toFixed(4)}
               </p>
@@ -143,7 +143,7 @@ export function MetadataPanel() {
         <div className="space-y-1">
           {entries.map((entry) => (
             <div key={entry.label} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-zinc-800/50">
-              <span className="text-xs text-zinc-500 flex items-center gap-1.5">
+              <span className="text-xs text-zinc-400 flex items-center gap-1.5">
                 {entry.icon}
                 {entry.label}
               </span>
@@ -156,14 +156,14 @@ export function MetadataPanel() {
       </div>
 
       {entries.length === 0 && (
-        <p className="text-xs text-zinc-500 text-center">No standard EXIF fields found.</p>
+        <p className="text-xs text-zinc-400 text-center">No standard EXIF fields found.</p>
       )}
 
       {/* Info */}
       <div className="p-3 bg-zinc-800/50 rounded-lg">
         <div className="flex items-start gap-2">
-          <Trash2 className="w-3.5 h-3.5 text-zinc-500 mt-0.5 shrink-0" />
-          <p className="text-[10px] text-zinc-500">
+          <Trash2 className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
+          <p className="text-[11px] text-zinc-400">
             All metadata is automatically stripped when you export. Canvas re-encoding removes EXIF, GPS, and all embedded data for privacy.
           </p>
         </div>

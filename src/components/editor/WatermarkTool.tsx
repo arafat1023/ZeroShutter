@@ -12,7 +12,7 @@ export function WatermarkTool() {
   if (!watermark) {
     return (
       <div className="space-y-4">
-        <p className="text-xs leading-relaxed text-zinc-500">
+        <p className="text-xs leading-relaxed text-zinc-400">
           Overlay text or your own logo. Everything stays on your device.
         </p>
         <button

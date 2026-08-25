@@ -51,7 +51,7 @@ export function Toolbar({ onSelect }: ToolbarProps) {
         } ${extraClasses}`}
       >
         {tool.icon}
-        <span className="text-[10px]">{tool.label}</span>
+        <span className="text-[11px]">{tool.label}</span>
       </button>
     );
   };

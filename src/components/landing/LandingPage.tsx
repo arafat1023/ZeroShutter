@@ -16,7 +16,7 @@ const FEATURES = [
 const TRUST_POINTS = [
   { icon: ShieldCheck, title: 'No Uploads', description: 'Your images never leave your device. All processing happens locally in the browser.' },
   { icon: EyeOff, title: 'No Tracking', description: 'No cookies, no personal data collected. Your images and edits stay entirely yours.' },
-  { icon: DatabaseZap, title: 'No Storage', description: 'Nothing is saved to any server. Close the tab and your data is gone.' },
+  { icon: DatabaseZap, title: 'Stays On Your Device', description: 'Work is kept in this browser so a refresh does not lose it — and Clear wipes it.' },
 ] as const;
 
 export function LandingPage() {
@@ -77,7 +77,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-zinc-800/50 py-8 text-center text-sm text-zinc-600">
+      <footer className="border-t border-zinc-800/50 py-8 text-center text-sm text-zinc-400">
         ZeroShutter — 100% client-side image editing. No data ever leaves your browser.
       </footer>
     </main>

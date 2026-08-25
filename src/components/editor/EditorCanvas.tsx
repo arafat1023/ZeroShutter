@@ -4,12 +4,13 @@ import { useViewStore } from '@/stores/useViewStore';
 import { formatFileSize } from '@/lib/format';
 import { predictOutputSize } from '@/lib/exportOptions';
 import { CompareSlider } from '@/components/shared/CompareSlider';
-import { CropperOverlay } from '@/components/editor/CropperOverlay';
+import { CropStage } from '@/components/editor/CropStage';
 import { PreviewStage } from '@/components/editor/PreviewStage';
 import { composedSize, rotatedSize } from '@/lib/previewGeometry';
 import { SharpenFilter } from '@/components/editor/SharpenFilter';
 import { CanvasToolbar } from '@/components/editor/CanvasToolbar';
 import { EditBadges } from '@/components/editor/EditBadges';
+import { useCanvasGestures } from '@/hooks/useCanvasGestures';
 
 const VIEWPORT_PADDING = 48;
 const SHARPEN_FILTER_ID = 'zeroshutter-sharpen';
@@ -25,6 +26,8 @@ export function EditorCanvas() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
+  useCanvasGestures(viewportRef);
+
   useLayoutEffect(() => {
     const node = viewportRef.current;
     if (!node) return;
@@ -35,8 +38,17 @@ export function EditorCanvas() {
     return () => observer.disconnect();
   }, [activeTool, showCompare]);
 
+  const isCropping = activeTool === 'crop';
   const composed = activeImage ? composedSize(activeImage, editState) : null;
-  const bounds = composed ? rotatedSize(composed.width, composed.height, editState.rotate.angle) : null;
+
+  // While cropping we work on the untransformed image, so the viewport has to
+  // make room for the full frame rather than the composed result.
+  const bounds =
+    activeImage && isCropping
+      ? { width: activeImage.width, height: activeImage.height }
+      : composed
+      ? rotatedSize(composed.width, composed.height, editState.rotate.angle)
+      : null;
 
   // Fit mode never enlarges past 100%, so small images stay crisp.
   const fitScale =
@@ -56,7 +68,7 @@ export function EditorCanvas() {
 
   if (!activeImage) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-zinc-600">
+      <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-zinc-400">
         No image selected
       </div>
     );
@@ -85,29 +97,40 @@ export function EditorCanvas() {
       </div>
 
       {/* Canvas viewport */}
-      {activeTool === 'crop' ? (
-        <CropperOverlay />
-      ) : (
-        <div ref={viewportRef} className="flex flex-1 items-center justify-center overflow-auto bg-zinc-950/60 p-6">
-          {showCompare ? (
-            <CompareSlider image={activeImage} editState={editState} scale={scale} sharpenFilterId={sharpness > 0 ? SHARPEN_FILTER_ID : undefined} />
-          ) : (
-            <div
-              className="checkerboard shrink-0 rounded-sm shadow-2xl shadow-black/40"
-              style={{ width: (bounds?.width ?? 0) * scale, height: (bounds?.height ?? 0) * scale }}
-            >
-              <div className="flex h-full w-full items-center justify-center">
-                <PreviewStage
-                  image={activeImage}
-                  editState={editState}
-                  scale={scale}
-                  sharpenFilterId={sharpness > 0 ? SHARPEN_FILTER_ID : undefined}
-                />
-              </div>
+      <div
+        ref={viewportRef}
+        className="flex flex-1 items-center justify-center overflow-auto bg-zinc-950/60 p-6"
+        style={{ touchAction: 'pan-x pan-y' }}
+      >
+        {isCropping ? (
+          <CropStage
+            image={activeImage}
+            scale={scale}
+            sharpenFilterId={sharpness > 0 ? SHARPEN_FILTER_ID : undefined}
+          />
+        ) : showCompare ? (
+          <CompareSlider
+            image={activeImage}
+            editState={editState}
+            scale={scale}
+            sharpenFilterId={sharpness > 0 ? SHARPEN_FILTER_ID : undefined}
+          />
+        ) : (
+          <div
+            className="checkerboard shrink-0 rounded-sm shadow-2xl shadow-black/40"
+            style={{ width: (bounds?.width ?? 0) * scale, height: (bounds?.height ?? 0) * scale }}
+          >
+            <div className="flex h-full w-full items-center justify-center">
+              <PreviewStage
+                image={activeImage}
+                editState={editState}
+                scale={scale}
+                sharpenFilterId={sharpness > 0 ? SHARPEN_FILTER_ID : undefined}
+              />
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       <CanvasToolbar displayZoom={scale} />
     </div>

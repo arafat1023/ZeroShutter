@@ -1,6 +1,6 @@
 # ZeroShutter
 
-A powerful, privacy-first image editor that runs entirely in your browser. No uploads, no servers, no tracking — your images never leave your device.
+A powerful, privacy-first image editor that runs entirely in your browser. No uploads, no servers, no tracking — your images never leave your device. Your working session is kept in the browser's own storage so a refresh doesn't lose it, and clearing your images wipes it.
 
 Built with React 19, TypeScript, and the Canvas API.
 
@@ -27,6 +27,7 @@ Built with React 19, TypeScript, and the Canvas API.
 - **Drag & Drop** — Drop files or entire folders
 - **Clipboard Paste** — Paste images directly with Ctrl+V
 - **Undo/Redo** — 20-step named history, kept separately per image, with click-to-jump
+- **Session Restore** — Images and edits survive a refresh via IndexedDB, all on-device
 - **Before/After** — Compare slider showing the same framing with and without colour edits
 - **EXIF Viewer** — View camera metadata with GPS privacy warnings
 

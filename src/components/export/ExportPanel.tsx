@@ -127,7 +127,7 @@ export function ExportPanel() {
             onChange={(e) => setQuality(parseInt(e.target.value) / 100)}
             className="w-full accent-violet-500"
           />
-          <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+          <div className="flex justify-between text-[11px] text-zinc-400 mt-1">
             <span>Smallest</span>
             <span>Best quality</span>
           </div>
@@ -180,7 +180,7 @@ export function ExportPanel() {
             placeholder={defaultName}
             className="flex-1 min-w-0 px-3 py-2 bg-zinc-800 rounded-lg text-sm text-zinc-200 border border-zinc-700 focus:outline-none focus:border-violet-500"
           />
-          <span className="text-xs text-zinc-500 shrink-0">.{ext}</span>
+          <span className="text-xs text-zinc-400 shrink-0">.{ext}</span>
         </div>
       </div>
 
@@ -202,7 +202,7 @@ export function ExportPanel() {
         )}
       </button>
 
-      <p className="flex items-start gap-1.5 text-[10px] text-zinc-500">
+      <p className="flex items-start gap-1.5 text-[11px] text-zinc-400">
         <Info className="w-3 h-3 mt-px shrink-0" />
         EXIF and GPS metadata are stripped on export.
       </p>

@@ -4,6 +4,7 @@ import { useViewStore } from '@/stores/useViewStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useClipboardPaste } from '@/hooks/useClipboardPaste';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 import { filterImageFiles, describeRejected, openFilePicker } from '@/lib/files';
 import { Header } from '@/components/layout/Header';
 import { LandingPage } from '@/components/landing/LandingPage';
@@ -32,6 +33,7 @@ export function App() {
   const hasImages = images.length > 0;
 
   useClipboardPaste();
+  useSessionPersistence();
 
   const handleOpenFiles = useCallback(async () => {
     const picked = await openFilePicker();

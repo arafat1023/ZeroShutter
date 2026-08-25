@@ -41,7 +41,7 @@ export function BatchPanel() {
             >
               <img src={image.originalUrl} alt="" className="h-20 w-full object-cover lg:h-24" />
               <div className="absolute inset-x-0 bottom-0 bg-black/70 px-1.5 py-1 text-left">
-                <p className="truncate text-[9px] text-zinc-200">{image.name}</p>
+                <p className="truncate text-[11px] text-zinc-200">{image.name}</p>
                 <p className="text-[8px] text-zinc-400">{formatFileSize(image.size)}</p>
               </div>
             </button>

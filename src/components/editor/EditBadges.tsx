@@ -36,7 +36,7 @@ export function EditBadges({ editState }: { editState: EditState }) {
   return (
     <div className="ml-auto flex flex-wrap justify-end gap-1">
       {badges.map((badge) => (
-        <span key={badge} className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] text-violet-300">
+        <span key={badge} className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[11px] text-violet-300">
           {badge}
         </span>
       ))}

@@ -82,7 +82,7 @@ export function Header({ onOpenFiles }: HeaderProps) {
           onClick={toggleShortcuts}
           title="Keyboard shortcuts (?)"
           aria-label="Keyboard shortcuts"
-          className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+          className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
         >
           <Keyboard className="h-4 w-4" />
         </button>

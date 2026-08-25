@@ -12,7 +12,7 @@ export function BorderTool() {
   if (!border) {
     return (
       <div className="space-y-4">
-        <p className="text-xs text-zinc-500">Add padding or a border around your image.</p>
+        <p className="text-xs text-zinc-400">Add padding or a border around your image.</p>
         <button
           onClick={enableBorder}
           className="w-full px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-lg transition-colors"

@@ -85,14 +85,14 @@ export function BatchExport() {
     <div className="space-y-3">
       <div className="h-px bg-zinc-800" />
       <div>
-        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
+        <p className="text-[11px] text-zinc-400 uppercase tracking-wider mb-1">
           Batch Export ({images.length} images)
         </p>
-        <p className="text-[10px] text-zinc-500 leading-relaxed">
+        <p className="text-[11px] text-zinc-400 leading-relaxed">
           Applies <span className="text-zinc-300">{appliedEdits.join(', ')}</span> to every image.
         </p>
         {editState.crop && (
-          <p className="text-[10px] text-amber-400/80 mt-1">
+          <p className="text-[11px] text-amber-400/80 mt-1">
             Crop is skipped in batch — its coordinates only apply to the current image.
           </p>
         )}
@@ -132,7 +132,7 @@ export function BatchExport() {
           </div>
           <div className="max-h-32 overflow-y-auto space-y-1">
             {statuses.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 text-[10px]">
+              <div key={s.id} className="flex items-center gap-2 text-[11px]">
                 {s.status === 'done' && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
                 {s.status === 'processing' && <Loader2 className="w-3 h-3 text-violet-400 animate-spin shrink-0" />}
                 {s.status === 'error' && <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />}
